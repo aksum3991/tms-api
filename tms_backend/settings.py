@@ -42,7 +42,11 @@ SECRET_KEY = "django-insecure-4&&!k$xqt0g&$r^!t)1*51#i0v8wr4u7(us#5106t!f#2ka=jw
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    "tms-api-23gs.onrender.com",  
+    "localhost",
+    "127.0.0.1",
+]
 
 AUTH_USER_MODEL = "auth_app.User" 
 
