@@ -142,7 +142,7 @@ CHANNEL_LAYERS = {
 
 DATABASES = {
     'default': dj_database_url.config(
-        default=os.getenv('DATABASE_URL', 'postgresql://tms_user:8wyCQjnAz5Kot5jywPjYz5A6Gyv95by9@dpg-cugr9qhu0jms73fpv150-a/tms_db_lm6y'),
+        default=os.getenv('DATABASE_URL'),
         conn_max_age=600
     )
 }
