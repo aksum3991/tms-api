@@ -1,5 +1,6 @@
 from .models import Notification
 from django.core.mail import send_mail
+from rest_framework.pagination import PageNumberPagination
 
 def send_approval_email(user):
     subject = "Registration Approved"
@@ -10,7 +11,7 @@ def send_approval_email(user):
         f"{redirect_link}.\n\n"
         "Best regards,\nAdmin Team"
     )
-    from_email = 'mebrhit765@gmail.com'  # Replace with your actual sender email
+    from_email = 'mebrhit765@gmail.com'  
     recipient_list = [user.email]
     send_mail(subject, message, from_email, recipient_list)
 
@@ -35,15 +36,18 @@ def create_registration_notification(user):
     email=[user.email]
     message = f"A new user registration request has been made for",email ,"."
     Notification.objects.create(
-        user=user,  # This would be the system admin or the appropriate admin
-        # title="New User Registration Request",
+        user=user,  
         message=message
     )
 
 def create_resubmission_notification(user):
     message = f"User {user.email} has resubmitted their registration."
     Notification.objects.create(
-        user=user,  # This would be the system admin or the appropriate admin
-        # title="User Resubmission Request",
+        user=user,  
         message=message
     )
+
+class StandardResultsSetPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 100
