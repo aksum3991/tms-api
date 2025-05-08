@@ -12,6 +12,10 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     build-essential \
     libpq-dev \
+    default-libmysqlclient-dev \
+    pkg-config \
+    python3-dev \
+    gcc \
     && rm -rf /var/lib/apt/lists/*
 
 # Install pipenv (only if your project uses Pipenv)
