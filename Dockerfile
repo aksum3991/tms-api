@@ -1,30 +1,39 @@
-# Use an official Python image as the base
-FROM python:3.11
+# Use an official Python runtime
+FROM python:3.10-slim
 
 # Set environment variables
-ENV PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=off \
-    PIPENV_VENV_IN_PROJECT=1
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
 
-# Set the working directory in the container
+# Set working directory inside container
 WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
-    libpq-dev gcc curl && \
-    rm -rf /var/lib/apt/lists/*
+    build-essential \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy Pipenv files first (to leverage Docker's caching mechanism)
-COPY Pipfile Pipfile.lock /app/
+# Install pipenv (only if your project uses Pipenv)
+# RUN pip install --upgrade pip
+# RUN pip install pipenv
+COPY requirements.txt /app/
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Install dependencies via Pipenv
-RUN pip install --upgrade pip && pip install pipenv && pipenv install --deploy --system
+# Copy Pipfile and Pipfile.lock first
+# COPY Pipfile Pipfile.lock ./
 
-# Copy the entire project
-COPY . /app/
+# Install python dependencies
+# RUN pipenv install --deploy --system
 
-# Expose the port Django runs on
+# Copy the rest of the project
+COPY . .
+
+# Collect static files (optional if you use Django admin)
+# RUN python manage.py collectstatic --noinput
+
+# Expose port 8000
 EXPOSE 8000
 
-# Run the application
-CMD ["gunicorn", "core.wsgi:application", "--bind", "0.0.0.0:8000"]
+# Start Django server
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]

@@ -111,7 +111,13 @@ class NotificationService:
             'message': _("Vehicle {vehicle_model} (Plate: {license_plate}) has reached {kilometer} km. "
                         "It now requires servicing. Please schedule maintenance as soon as possible."),
             'priority': 'high'
-},  
+        },  
+       'trip_completed': {
+            'title': "Trip Completed",
+            'message': "{completer} has completed the trip to {destination}. Vehicle: {vehicle}.",
+            'priority': 'normal',
+    },
+
     }
 
     @classmethod
@@ -176,6 +182,7 @@ class NotificationService:
             'requesters_car_model':maintenance_request.requesters_car.model,
             'requesters_car_license_plate':maintenance_request.requesters_car.license_plate,
             'rejector': kwargs.get('rejector', 'Unknown'),
+            'approver': kwargs.get('approver', 'Unknown'),
             'rejection_reason': maintenance_request.rejection_message or "No reason provided.",
             **kwargs
         }
@@ -297,6 +304,42 @@ class NotificationService:
         ]
 
         Notification.objects.bulk_create(notifications)
+
+    @classmethod
+    def send_trip_completion_notification(cls, transport_request, recipient: User, completer: str):
+        """
+        Send a trip completion notification (supports both TransportRequest and HighCostTransportRequest).
+        """
+        template = cls.NOTIFICATION_TEMPLATES.get('trip_completed')
+        if not template:
+            raise ValueError("Notification template for 'trip_completed' not found.")
+
+        request_data = {
+            'request_id': transport_request.id,
+            'completer': completer,
+            'destination': transport_request.destination,
+            'vehicle': transport_request.vehicle.license_plate if transport_request.vehicle else "N/A"
+        }
+
+        notification_kwargs = {
+            'recipient': recipient,
+            'notification_type': 'trip_completed',
+            'title': template['title'],
+            'message': template['message'].format(**request_data),
+            'priority': template['priority'],
+            'action_required': False,
+            'metadata': request_data,
+        }
+
+        # Attach the correct FK field
+        if isinstance(transport_request, HighCostTransportRequest):
+            notification_kwargs['highcost_request'] = transport_request
+        elif isinstance(transport_request, TransportRequest):
+            notification_kwargs['transport_request'] = transport_request
+        else:
+            raise TypeError("Unsupported request type for trip completion notification.")
+
+        return Notification.objects.create(**notification_kwargs)
 
     @classmethod
     def mark_as_read(cls, notification_id: int) -> None:

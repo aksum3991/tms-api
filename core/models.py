@@ -164,7 +164,7 @@ class HighCostTransportRequest(models.Model):
 
 
     def __str__(self):
-        return f"{self.requester.get_full_name()} - {self.destination} ({self.status})"
+        return f"{self.requester.full_name} - {self.destination} ({self.status})"
 
 class Notification(models.Model):
     NOTIFICATION_TYPES = (

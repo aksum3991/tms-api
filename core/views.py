@@ -667,7 +667,7 @@ class MaintenanceRequestActionView(APIView):
 
                 if missing:
                     return Response(
-                        {"error": f"The following fields must be submitted before forwarding: {', '.join(missing)}"},
+                        {"error": f"The following files must be submitted before forwarding: {', '.join(missing)}"},
                         status=status.HTTP_400_BAD_REQUEST
                     )
 
@@ -712,18 +712,18 @@ class MaintenanceRequestActionView(APIView):
                 maintenance_request.status = 'approved'
                 maintenance_request.save()
 
-                # # Notify requester
-                # NotificationService.send_maintenance_notification(
-                #     'maintenance_approved', maintenance_request, maintenance_request.requester,
-                #     approver=request.user.full_name
-                # )
+                # Notify requester
+                NotificationService.send_maintenance_notification(
+                    'maintenance_approved', maintenance_request, maintenance_request.requester,
+                    approver=request.user.full_name
+                )
 
-                # # Notify finance manager
-                # finance_managers = User.objects.filter(role=User.FINANCE_MANAGER, is_active=True)
-                # for fm in finance_managers:
-                #     NotificationService.send_maintenance_notification(
-                #         'maintenance_approved', maintenance_request, recipient=fm
-                #     )
+                # Notify finance manager
+                finance_managers = User.objects.filter(role=User.FINANCE_MANAGER, is_active=True)
+                for fm in finance_managers:
+                    NotificationService.send_maintenance_notification(
+                        'maintenance_approved', maintenance_request, recipient=fm
+                    )
 
                 return Response({"message": "Request approved successfully and finance notified."}, status=status.HTTP_200_OK)
 
@@ -887,17 +887,14 @@ class TripCompletionView(APIView):
         trip_request.trip_completed=True
         trip_request.vehicle.mark_as_available()
         trip_request.save()
-        # Notify transport manager
-        # transport_manager = User.objects.filter(role=User.TRANSPORT_MANAGER).first()
-        # if transport_manager:
-        #     NotificationService.create_notification(
-        #         'trip_completed',
-        #         trip_request,
-        #         transport_manager,
-        #         vehicle=trip_request.vehicle.license_plate,
-        #         driver=request.user.full_name,
-        #         destination=trip_request.destination
-        #     )
+        # # Notify transport manager
+        transport_manager = User.objects.filter(role=User.TRANSPORT_MANAGER).first()
+        if transport_manager:
+           NotificationService.send_trip_completion_notification(
+                transport_request=trip_request,
+                recipient=transport_manager,
+                completer=request.user.full_name
+            )
 
         return Response({"message": "Trip successfully marked as completed."}, status=200)
 
