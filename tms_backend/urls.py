@@ -9,15 +9,17 @@ from django.conf import settings
 from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
 
-from core.views import AddMonthlyKilometersView, AvailableDriversView, AvailableVehiclesListView, MyAssignedVehicleView, VehicleViewSet
+from core.views import AddMonthlyKilometersView, AvailableDriversView, AvailableOrganizationVehiclesListView, AvailableVehiclesListView, MyAssignedVehicleView, VehicleViewSet
 
 router = DefaultRouter()
 router.register(r'vehicles',VehicleViewSet)
 urlpatterns = [
+    path('admin/', admin.site.urls),
     path('',include(auth_urls)),
     path("transport-requests/",include(core_urls)),
     path('available-drivers/', AvailableDriversView.as_view(), name='available-drivers'),
     path('available-vehicles/', AvailableVehiclesListView.as_view(), name='available-vehicles'), 
+    path('organization-available-vehicles/', AvailableOrganizationVehiclesListView.as_view(), name='organization-available-vehicles'),
     path('my-vehicle/', MyAssignedVehicleView.as_view(), name='my-assigned-vehicle'),
     path("maintenance-requests/",include(maintenance_urls)),
     path("refueling_requests/",include(refueling_urls)),

@@ -59,7 +59,8 @@ CORS_ALLOW_CREDENTIALS = False
 CSRF_COOKIE_SECURE = True
 
 CSRF_TRUSTED_ORIGINS = [
-    "https://tmsfront.vercel.app"
+    "https://tmsfront.vercel.app",
+    
 ] 
 
 # Application definition

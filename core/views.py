@@ -51,6 +51,13 @@ class AvailableVehiclesListView(generics.ListAPIView):
     queryset = Vehicle.objects.filter(status=Vehicle.AVAILABLE).select_related("driver")
     serializer_class = VehicleSerializer
     permission_classes = [IsTransportManager]
+class AvailableOrganizationVehiclesListView(generics.ListAPIView):
+    queryset = Vehicle.objects.filter(source=Vehicle.ORGANIZATION_OWNED, status=Vehicle.AVAILABLE,driver__role=User.DRIVER).select_related("driver")
+    serializer_class = VehicleSerializer
+    permission_classes = [IsTransportManager]
+
+    # def get_queryset(self):
+    #     return Vehicle.objects.filter(source=Vehicle.ORGANIZATION_OWNED, status=Vehicle.AVAILABLE,driver__role=User.DRIVER).select_related("driver")   
 
 class AvailableDriversView(APIView):
     permission_classes = [IsTransportManager]
@@ -171,21 +178,25 @@ class HighCostTransportRequestActionView(APIView):
                 highcost_request.status = 'approved'
                 highcost_request.save()
 
+                approver = request.user.full_name
                 # Notify the requester and stakeholders
                 NotificationService.send_highcost_notification(
                     'highcost_approved',
                     highcost_request,
-                    highcost_request.requester
+                    highcost_request.requester,
+                    approver=approver
                 )
                 NotificationService.send_highcost_notification(
                     'highcost_approved',
                     highcost_request,
-                    User.objects.get(role=User.FINANCE_MANAGER)
+                    User.objects.get(role=User.FINANCE_MANAGER),
+                    approver=approver
                 )
                 NotificationService.send_highcost_notification(
                     'highcost_approved',
                     highcost_request,
-                    User.objects.get(role=User.TRANSPORT_MANAGER)
+                    User.objects.get(role=User.TRANSPORT_MANAGER),
+                    approver=approver
                 )
             else:
                 return Response({"error": "Approval not allowed at this stage."}, status=403)
@@ -266,21 +277,35 @@ class AssignVehicleAfterBudgetApprovalView(APIView):
         except ValidationError as e:
             return Response({"error": str(e)}, status=400)
 
-
-        # NotificationService.send_highcost_notification(
-        #       'assigned', highcost_request, highcost_request.vehicle.driver,
-        #         vehicle=f"{highcost_request.vehicle.model} ({highcost_request.vehicle.license_plate})", destination=highcost_request.destination,
-        #         date=highcost_request.start_day.strftime('%Y-%m-%d'), start_time=highcost_request.start_time.strftime('%H:%M')
-        # )
-        # NotificationService.send_highcost_notification(
-        #       'assigned', highcost_request, highcost_request.requester,
-        #         vehicle=f"{highcost_request.vehicle.model} ({highcost_request.vehicle.license_plate})", destination=highcost_request.destination,
-        #         date=highcost_request.start_day.strftime('%Y-%m-%d'), start_time=highcost_request.start_time.strftime('%H:%M')
-        # )
-
         highcost_request.vehicle = vehicle
         highcost_request.vehicle_assigned = True
         highcost_request.save()
+
+        driver = vehicle.driver
+        vehicle_str = f"{vehicle.model} ({vehicle.license_plate})"
+        # Notify driver
+        NotificationService.send_highcost_notification(
+            'assigned',
+            highcost_request,
+            driver,
+            vehicle=vehicle_str,
+            destination=highcost_request.destination,
+            date=highcost_request.start_day.strftime('%Y-%m-%d'),
+            start_time=highcost_request.start_time.strftime('%H:%M'),
+            passengers=", ".join([e.full_name for e in highcost_request.employees.all()])
+        )
+
+        NotificationService.send_highcost_notification(
+            'highcost_vehicle_assigned',
+            highcost_request,
+            highcost_request.requester,
+            vehicle=vehicle_str,
+            driver=driver.full_name,
+            driver_phone=driver.phone_number,  
+            destination=highcost_request.destination,
+            date=highcost_request.start_day.strftime('%Y-%m-%d'),
+            start_time=highcost_request.start_time.strftime('%H:%M')
+        )
         return Response({"message": "Vehicle assigned and status updated successfully."}, status=200)
 
 

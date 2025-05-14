@@ -106,6 +106,13 @@ class NotificationService:
             'message': _("Your high-cost transport request #{request_id} has been approved by {approver}."),
             'priority': 'normal'
         },
+        'highcost_vehicle_assigned': {
+            'title': _("Vehicle Assigned to Your Request"),
+            'message': _("A vehicle has been assigned to your high-cost transport request #{request_id}. "
+                        "Vehicle: {vehicle}. Driver: {driver} (Phone: {driver_phone}). "
+                        "Destination: {destination}, Date: {date}, Start Time: {start_time}."),
+            'priority': 'normal'
+        },
         'service_due': {
             'title': _("Service Due Notification"),
             'message': _("Vehicle {vehicle_model} (Plate: {license_plate}) has reached {kilometer} km. "
