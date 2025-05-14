@@ -280,14 +280,16 @@ class ActionLog(models.Model):
         ('rejected', 'Rejected'),
     ]
 
-    # Generic relation to TransportRequest, MaintenanceRequest, or RefuelingRequest 
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
     object_id = models.PositiveIntegerField()
     request_object = GenericForeignKey('content_type', 'object_id')
+
     action_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     action = models.CharField(max_length=20, choices=ACTION_CHOICES)
-    timestamp = models.DateTimeField(auto_now_add=True)
+    status_at_time = models.CharField(max_length=20)  # store the status at the time of action
+    approver_role = models.PositiveSmallIntegerField(choices=User.ROLE_CHOICES)
     remarks = models.TextField(blank=True, null=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"{self.action_by.get_full_name()} {self.action} {self.content_type} #{self.object_id} on {self.timestamp}"

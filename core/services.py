@@ -387,10 +387,13 @@ class NotificationService:
 def log_action(request_obj, user, action, remarks=None):
     ActionLog.objects.create(
         content_type=ContentType.objects.get_for_model(request_obj),
-        object_id=request_obj.id,
+        object_id=request_obj.pk,
+        request_object=request_obj,
         action_by=user,
         action=action,
-        remarks=remarks
+        status_at_time=request_obj.status,  # <-- manually extracting status
+        approver_role=user.role,
+        remarks=remarks,
     )
 
 class RefuelingEstimator:

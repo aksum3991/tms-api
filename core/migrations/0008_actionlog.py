@@ -13,47 +13,47 @@ class Migration(migrations.Migration):
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
-    operations = [
-        migrations.CreateModel(
-            name="ActionLog",
-            fields=[
-                (
-                    "id",
-                    models.BigAutoField(
-                        auto_created=True,
-                        primary_key=True,
-                        serialize=False,
-                        verbose_name="ID",
-                    ),
-                ),
-                ("object_id", models.PositiveIntegerField()),
-                (
-                    "action",
-                    models.CharField(
-                        choices=[
-                            ("forwarded", "Forwarded"),
-                            ("approved", "Approved"),
-                            ("rejected", "Rejected"),
-                        ],
-                        max_length=20,
-                    ),
-                ),
-                ("timestamp", models.DateTimeField(auto_now_add=True)),
-                ("remarks", models.TextField(blank=True, null=True)),
-                (
-                    "action_by",
-                    models.ForeignKey(
-                        on_delete=django.db.models.deletion.CASCADE,
-                        to=settings.AUTH_USER_MODEL,
-                    ),
-                ),
-                (
-                    "content_type",
-                    models.ForeignKey(
-                        on_delete=django.db.models.deletion.CASCADE,
-                        to="contenttypes.contenttype",
-                    ),
-                ),
-            ],
-        ),
-    ]
+    # operations = [
+    #     migrations.CreateModel(
+    #         name="ActionLog",
+    #         fields=[
+    #             (
+    #                 "id",
+    #                 models.BigAutoField(
+    #                     auto_created=True,
+    #                     primary_key=True,
+    #                     serialize=False,
+    #                     verbose_name="ID",
+    #                 ),
+    #             ),
+    #             ("object_id", models.PositiveIntegerField()),
+    #             (
+    #                 "action",
+    #                 models.CharField(
+    #                     choices=[
+    #                         ("forwarded", "Forwarded"),
+    #                         ("approved", "Approved"),
+    #                         ("rejected", "Rejected"),
+    #                     ],
+    #                     max_length=20,
+    #                 ),
+    #             ),
+    #             ("timestamp", models.DateTimeField(auto_now_add=True)),
+    #             ("remarks", models.TextField(blank=True, null=True)),
+    #             (
+    #                 "action_by",
+    #                 models.ForeignKey(
+    #                     on_delete=django.db.models.deletion.CASCADE,
+    #                     to=settings.AUTH_USER_MODEL,
+    #                 ),
+    #             ),
+    #             (
+    #                 "content_type",
+    #                 models.ForeignKey(
+    #                     on_delete=django.db.models.deletion.CASCADE,
+    #                     to="contenttypes.contenttype",
+    #                 ),
+    #             ),
+    #         ],
+    #     ),
+    # ]
