@@ -1020,10 +1020,6 @@ class AddMonthlyKilometersView(generics.CreateAPIView):
         vehicle.total_kilometers += kilometers
         vehicle.save()
 
-        # Check service threshold
-        if (vehicle.total_kilometers - vehicle.last_service_kilometers) >= 5000:
-            self.send_service_notification(vehicle)
-              
         transport_managers = User.objects.filter(role=User.TRANSPORT_MANAGER, is_active=True)
         general_systems = User.objects.filter(role=User.GENERAL_SYSTEM, is_active=True)
         driver = vehicle.driver  # or vehicle.assigned_driver depending on your model
@@ -1032,11 +1028,21 @@ class AddMonthlyKilometersView(generics.CreateAPIView):
             raise ValueError("Vehicle has no assigned driver.")
 
         recipients = list(transport_managers) + list(general_systems) + [driver]
+        # Check service threshold
+        if (vehicle.total_kilometers - vehicle.last_service_kilometers) >= 5000:
+            NotificationService.send_service_notification(
+                vehicle=vehicle,
+                recipients=recipients
+            )
 
-        NotificationService.send_service_notification(
-            vehicle=vehicle,
-            recipients=recipients
-        )
+class MyMonthlyKilometerLogsListView(generics.ListAPIView):
+    serializer_class = MonthlyKilometerLogSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return MonthlyKilometerLog.objects.filter(
+            recorded_by=self.request.user
+        ).order_by('-created_at')
 
 class UserActionLogDetailView(generics.RetrieveAPIView):
     serializer_class = ActionLogListSerializer  # You can use the same serializer

@@ -244,15 +244,16 @@ class HighCostTransportRequestDetailSerializer(serializers.ModelSerializer):
 class MonthlyKilometerLogSerializer(serializers.ModelSerializer):
     kilometers_driven = serializers.IntegerField(min_value=1)
     month = serializers.CharField(max_length=30)
+    vehicle = serializers.StringRelatedField(read_only=True)  # optional: for display
+    recorded_by = serializers.StringRelatedField(read_only=True) 
 
     class Meta:
         model = MonthlyKilometerLog
-        fields = ['kilometers_driven', 'month']
+        fields = ['id','vehicle', 'month', 'kilometers_driven','recorded_by', 'created_at']
 
     def validate_month(self, value):
         if not value.strip():
             raise serializers.ValidationError("Month cannot be blank.")
-
         try:
             
             datetime.strptime(value, "%B %Y")
@@ -269,6 +270,7 @@ class MonthlyKilometerLogSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(f"Kilometers for {month} already recorded for this vehicle.")
 
         return attrs
+   
 
 class ActionLogListSerializer(serializers.ModelSerializer):
     request_type = serializers.CharField(source='content_type.model')
