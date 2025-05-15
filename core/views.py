@@ -6,9 +6,9 @@ from rest_framework.response import Response
 from auth_app.permissions import IsDepartmentManager, IsTransportManager
 from auth_app.serializers import UserDetailSerializer
 from core import serializers
-from core.models import HighCostTransportRequest, MaintenanceRequest, MonthlyKilometerLog, RefuelingRequest, TransportRequest, Vehicle, Notification
+from core.models import ActionLog, HighCostTransportRequest, MaintenanceRequest, MonthlyKilometerLog, RefuelingRequest, TransportRequest, Vehicle, Notification
 from core.permissions import IsAllowedVehicleUser
-from core.serializers import AssignedVehicleSerializer, HighCostTransportRequestDetailSerializer, HighCostTransportRequestSerializer, MaintenanceRequestSerializer, MonthlyKilometerLogSerializer, RefuelingRequestDetailSerializer, RefuelingRequestSerializer, TransportRequestSerializer, NotificationSerializer, VehicleSerializer
+from core.serializers import ActionLogListSerializer, AssignedVehicleSerializer, HighCostTransportRequestDetailSerializer, HighCostTransportRequestSerializer, MaintenanceRequestSerializer, MonthlyKilometerLogSerializer, RefuelingRequestDetailSerializer, RefuelingRequestSerializer, TransportRequestSerializer, NotificationSerializer, VehicleSerializer
 from core.services import NotificationService, RefuelingEstimator, log_action
 from auth_app.models import User
 from django.db.models import Q
@@ -145,6 +145,7 @@ class HighCostTransportRequestActionView(APIView):
             highcost_request.status = 'forwarded'
             highcost_request.current_approver_role = next_role
             highcost_request.save()
+            log_action(request_obj=highcost_request,user=request.user,action="forwarded",remarks=request.data.get("remarks"))
 
             next_approvers =User.objects.filter(role=next_role, is_active=True) 
             for approver in next_approvers:
@@ -163,6 +164,8 @@ class HighCostTransportRequestActionView(APIView):
             highcost_request.status = 'rejected'
             highcost_request.rejection_message = rejection_message
             highcost_request.save()
+            log_action(request_obj=highcost_request,user=request.user,action="rejected",remarks=highcost_request.rejection_message)
+
 
             NotificationService.send_highcost_notification(
                 'highcost_rejected',
@@ -177,6 +180,7 @@ class HighCostTransportRequestActionView(APIView):
             if current_role == User.BUDGET_MANAGER and highcost_request.current_approver_role == User.BUDGET_MANAGER:
                 highcost_request.status = 'approved'
                 highcost_request.save()
+                log_action(request_obj=highcost_request,user=request.user,action="approved",remarks=request.data.get("remarks"))
 
                 approver = request.user.full_name
                 # Notify the requester and stakeholders
@@ -563,6 +567,8 @@ class RefuelingRequestActionView(APIView):
                     recipient=approver
                 )
             refueling_request.save()
+            log_action(request_obj=refueling_request,user=request.user,action="forwarded",remarks=request.data.get('remarks'))
+
 
         # ====== REJECT ACTION ======
         elif action == 'reject':
@@ -573,6 +579,7 @@ class RefuelingRequestActionView(APIView):
             refueling_request.status = 'rejected'
             refueling_request.rejection_message = rejection_message
             refueling_request.save()
+            log_action(request_obj=refueling_request,user=request.user,action="rejected",remarks=rejection_message)
 
             # # # Notify requester of rejection
             NotificationService.send_refueling_notification(
@@ -585,6 +592,7 @@ class RefuelingRequestActionView(APIView):
                 # Final approval by Transport Manager after Finance Manager has approved
                 refueling_request.status = 'approved'
                 refueling_request.save()
+                log_action(request_obj=refueling_request,user=request.user,action="approved",remarks=request.data.get("remarks"))
                 
                 finance_manger= User.objects.filter(role=User.FINANCE_MANAGER).first()
                 # # # Notify the original requester of approval
@@ -703,6 +711,7 @@ class MaintenanceRequestActionView(APIView):
             maintenance_request.status = 'forwarded'
             maintenance_request.current_approver_role = next_role
             maintenance_request.save()
+            log_action(request_obj=maintenance_request,user=request.user,action="forwarded",remarks=request.data.get("remarks"))
 
             # Notify next approver(s)
             next_approvers = User.objects.filter(role=next_role, is_active=True)
@@ -722,6 +731,7 @@ class MaintenanceRequestActionView(APIView):
             maintenance_request.status = 'rejected'
             maintenance_request.rejection_message = rejection_message
             maintenance_request.save()
+            log_action(request_obj=maintenance_request,user=request.user,action="rejected",remarks=maintenance_request.rejection_message)
 
             NotificationService.send_maintenance_notification(
                 'maintenance_rejected', maintenance_request, maintenance_request.requester,
@@ -736,7 +746,7 @@ class MaintenanceRequestActionView(APIView):
                 # Final approval
                 maintenance_request.status = 'approved'
                 maintenance_request.save()
-
+                log_action(request_obj=maintenance_request,user=request.user,action="approved",remarks=request.data.get("remarks"))
                 # Notify requester
                 NotificationService.send_maintenance_notification(
                     'maintenance_approved', maintenance_request, maintenance_request.requester,
@@ -801,9 +811,6 @@ class TransportRequestActionView(APIView):
         """Determine the next approver based on hierarchy."""
         role_hierarchy = {
             User.DEPARTMENT_MANAGER: User.TRANSPORT_MANAGER,
-            User.TRANSPORT_MANAGER: User.CEO,
-            User.CEO: User.FINANCE_MANAGER,
-            User.FINANCE_MANAGER: User.TRANSPORT_MANAGER,
         }
         return role_hierarchy.get(current_role, None)  
     def post(self, request, request_id):
@@ -835,7 +842,7 @@ class TransportRequestActionView(APIView):
             next_approvers = User.objects.filter(role=next_role, is_active=True)
             for approver in next_approvers:
                 NotificationService.create_notification('forwarded', transport_request, approver)
-            log_action(transport_request, request.user, 'forwarded')
+            log_action(request_obj=transport_request,user=request.user,action="forwarded",remarks=request.data.get("remarks"))
 
         elif action == 'reject':
             transport_request.status = 'rejected'
@@ -845,7 +852,7 @@ class TransportRequestActionView(APIView):
             NotificationService.create_notification(
                 'rejected', transport_request, transport_request.requester, rejector=request.user.full_name
             )
-            log_action(transport_request, request.user, 'rejected', remarks=transport_request.rejection_message)
+            log_action(request_obj=transport_request,user=request.user,action="rejected",remarks=transport_request.rejection_message)
 
         elif action == 'approve' and current_role == User.TRANSPORT_MANAGER:
             vehicle_id = request.data.get("vehicle_id")
@@ -877,7 +884,7 @@ class TransportRequestActionView(APIView):
             transport_request.vehicle = vehicle
             transport_request.status = 'approved'
             vehicle.mark_as_in_use()
-            log_action(transport_request, request.user, 'approved', remarks=f"Vehicle: {vehicle.license_plate}")
+            log_action(request_obj=transport_request,user=request.user,action="approved",remarks=f"Vehicle: {vehicle.license_plate}")
 
         else:
             return Response({"error": f"{current_role} cannot perform {action}."}, status=status.HTTP_403_FORBIDDEN)
@@ -1030,3 +1037,19 @@ class AddMonthlyKilometersView(generics.CreateAPIView):
             vehicle=vehicle,
             recipients=recipients
         )
+
+class UserActionLogDetailView(generics.RetrieveAPIView):
+    serializer_class = ActionLogListSerializer  # You can use the same serializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return ActionLog.objects.filter(action_by=self.request.user)
+
+
+class UserActionLogListView(generics.ListAPIView):
+    serializer_class = ActionLogListSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return ActionLog.objects.filter(action_by=self.request.user).order_by('-timestamp')
+

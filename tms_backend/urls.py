@@ -9,7 +9,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
 
-from core.views import AddMonthlyKilometersView, AvailableDriversView, AvailableOrganizationVehiclesListView, AvailableVehiclesListView, MyAssignedVehicleView, VehicleViewSet
+from core.views import AddMonthlyKilometersView, AvailableDriversView, AvailableOrganizationVehiclesListView, AvailableVehiclesListView, MyAssignedVehicleView, UserActionLogDetailView, UserActionLogListView, VehicleViewSet
 
 router = DefaultRouter()
 router.register(r'vehicles',VehicleViewSet)
@@ -25,5 +25,9 @@ urlpatterns = [
     path("refueling_requests/",include(refueling_urls)),
     path("highcost-requests/",include(highcost_urls)),
     path("vehicles/<int:vehicle_id>/add-monthly-kilometers/",AddMonthlyKilometersView.as_view(),name="add-monthly-kilometers"),
+    path("action-logs/", UserActionLogListView.as_view(), name="user-action-log-list"),
+    path("action-logs/<int:pk>/", UserActionLogDetailView.as_view(), name="user-action-log-detail"),
+
+
     path("",include(router.urls))
 ]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

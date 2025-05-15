@@ -4,7 +4,7 @@ from rest_framework import serializers
 from auth_app.models import User
 from django.utils.timezone import now 
 from auth_app.serializers import UserDetailSerializer
-from core.models import HighCostTransportRequest, MaintenanceRequest, MonthlyKilometerLog, RefuelingRequest, TransportRequest, Vehicle, Notification
+from core.models import ActionLog, HighCostTransportRequest, MaintenanceRequest, MonthlyKilometerLog, RefuelingRequest, TransportRequest, Vehicle, Notification
 
 class TransportRequestSerializer(serializers.ModelSerializer):
     requester = serializers.ReadOnlyField(source='requester.get_full_name')
@@ -269,3 +269,40 @@ class MonthlyKilometerLogSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(f"Kilometers for {month} already recorded for this vehicle.")
 
         return attrs
+
+class ActionLogListSerializer(serializers.ModelSerializer):
+    request_type = serializers.CharField(source='content_type.model')
+    request_id = serializers.IntegerField(source='object_id')
+    role_display = serializers.CharField(source='get_approver_role_display')
+    action_by = serializers.StringRelatedField()
+    request_object = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ActionLog
+        fields = [
+            'id',
+            'request_type',
+            'request_id',
+            'action',
+            'action_by',
+            'status_at_time',
+            'approver_role',
+            'role_display',
+            'remarks',
+            'timestamp',
+            'request_object',
+        ]
+    def get_request_object(self, obj):
+        serializer_map = {
+            'transportrequest': TransportRequestSerializer,
+            'highcosttransportrequest': HighCostTransportRequestSerializer,
+            'refuelingrequest': RefuelingRequestDetailSerializer,
+            'maintenancerequest': MaintenanceRequestSerializer,
+        }
+
+        model_name = obj.content_type.model  # e.g., 'transportrequest'
+        serializer_class = serializer_map.get(model_name)
+
+        if serializer_class and obj.request_object:
+            return serializer_class(obj.request_object).data
+        return None

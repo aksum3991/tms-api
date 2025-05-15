@@ -59,7 +59,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     objects = CustomUserManager()
 
     def __str__(self):
-        return self.email
+        return self.full_name
     
     def deactivate(self):
         self.is_active = False
