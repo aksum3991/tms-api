@@ -9,7 +9,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
 
-from core.views import AddMonthlyKilometersView, AvailableDriversView, AvailableOrganizationVehiclesListView, AvailableVehiclesListView, MyAssignedVehicleView, MyMonthlyKilometerLogsListView, UserActionLogDetailView, UserActionLogListView, VehicleViewSet
+from core.views import AddMonthlyKilometersView, AvailableDriversView, AvailableOrganizationVehiclesListView, AvailableVehiclesListView, MyAssignedVehicleView, MyMonthlyKilometerLogsListView, ReportAPIView, UserActionLogDetailView, UserActionLogListView, VehicleViewSet
 
 router = DefaultRouter()
 router.register(r'vehicles',VehicleViewSet)
@@ -28,7 +28,7 @@ urlpatterns = [
     path('vehicles/kilometer-logs/', MyMonthlyKilometerLogsListView.as_view(), name='my-kilometer-logs'),
     path("action-logs/", UserActionLogListView.as_view(), name="user-action-log-list"),
     path("action-logs/<int:pk>/", UserActionLogDetailView.as_view(), name="user-action-log-detail"),
-
+    path('report/', ReportAPIView.as_view(), name='report-api'),
 
     path("",include(router.urls))
 ]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

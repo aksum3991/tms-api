@@ -308,3 +308,12 @@ class ActionLogListSerializer(serializers.ModelSerializer):
         if serializer_class and obj.request_object:
             return serializer_class(obj.request_object).data
         return None
+
+class ReportFilterSerializer(serializers.Serializer):
+    start_date = serializers.DateField(required=False)
+    end_date = serializers.DateField(required=False)
+    request_type = serializers.ChoiceField(
+        choices=['transport', 'highcost', 'maintenance', 'refueling'],
+        required=False
+    )
+    status = serializers.CharField(required=False)

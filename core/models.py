@@ -121,7 +121,7 @@ class TransportRequest(models.Model):
     destination = models.CharField(max_length=255)
     reason = models.TextField()
     employees = models.ManyToManyField(User, related_name='travel_group')
-    vehicle = models.ForeignKey(Vehicle, null=True, blank=True, on_delete=models.SET_NULL)
+    vehicle = models.ForeignKey(Vehicle, null=True, blank=True, on_delete=models.SET_NULL,related_name="transport_requests")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     current_approver_role = models.PositiveSmallIntegerField(choices=User.ROLE_CHOICES, default=User.DEPARTMENT_MANAGER)
     rejection_message = models.TextField(blank=True, null=True)
@@ -148,7 +148,7 @@ class HighCostTransportRequest(models.Model):
     destination = models.CharField(max_length=255)
     reason = models.TextField()
     employees = models.ManyToManyField(User, related_name='highcost_travel_group')
-    vehicle = models.ForeignKey(Vehicle, null=True, blank=True,  on_delete=models.SET_NULL)
+    vehicle = models.ForeignKey(Vehicle, null=True, blank=True,  on_delete=models.SET_NULL,related_name="highcost_requests")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     current_approver_role = models.PositiveSmallIntegerField(choices=User.ROLE_CHOICES, default=User.CEO)
     rejection_message = models.TextField(blank=True, null=True)
@@ -233,7 +233,7 @@ class MaintenanceRequest(models.Model):
     ]
 
     requester = models.ForeignKey(User, on_delete=models.CASCADE)
-    requesters_car = models.ForeignKey(Vehicle, on_delete=models.CASCADE)
+    requesters_car = models.ForeignKey(Vehicle, on_delete=models.CASCADE, related_name='maintenance_requests')
     reason = models.TextField()
     date = models.DateField()
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="pending")
@@ -257,7 +257,7 @@ class RefuelingRequest(models.Model):
     ]
 
     requester = models.ForeignKey(User, on_delete=models.CASCADE)  
-    requesters_car = models.ForeignKey(Vehicle, on_delete=models.CASCADE)  
+    requesters_car = models.ForeignKey(Vehicle, on_delete=models.CASCADE, related_name='refueling_requests')  
     date = models.DateTimeField(auto_now_add=True)
     destination = models.CharField(max_length=1006)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")  

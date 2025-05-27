@@ -1,3 +1,4 @@
+from datetime import datetime
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, permissions, status
 from rest_framework.views import APIView
@@ -5,19 +6,21 @@ from rest_framework.viewsets import ModelViewSet
 from rest_framework.response import Response
 from auth_app.permissions import IsDepartmentManager, IsTransportManager
 from auth_app.serializers import UserDetailSerializer
+from auth_app.services import StandardResultsSetPagination
 from core import serializers
 from core.models import ActionLog, HighCostTransportRequest, MaintenanceRequest, MonthlyKilometerLog, RefuelingRequest, TransportRequest, Vehicle, Notification
 from core.permissions import IsAllowedVehicleUser
-from core.serializers import ActionLogListSerializer, AssignedVehicleSerializer, HighCostTransportRequestDetailSerializer, HighCostTransportRequestSerializer, MaintenanceRequestSerializer, MonthlyKilometerLogSerializer, RefuelingRequestDetailSerializer, RefuelingRequestSerializer, TransportRequestSerializer, NotificationSerializer, VehicleSerializer
+from core.serializers import ActionLogListSerializer, AssignedVehicleSerializer, HighCostTransportRequestDetailSerializer, HighCostTransportRequestSerializer, MaintenanceRequestSerializer, MonthlyKilometerLogSerializer, RefuelingRequestDetailSerializer, RefuelingRequestSerializer, ReportFilterSerializer, TransportRequestSerializer, NotificationSerializer, VehicleSerializer
 from core.services import NotificationService, RefuelingEstimator, log_action
 from auth_app.models import User
-from django.db.models import Q
+from django.db.models import Q, Sum
 from django.core.exceptions import ValidationError
 from rest_framework.generics import RetrieveAPIView
 from django.core.exceptions import PermissionDenied
 from rest_framework import serializers  
 from rest_framework.exceptions import ValidationError  
 from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.pagination import PageNumberPagination
 
 import logging
 
@@ -1059,3 +1062,123 @@ class UserActionLogListView(generics.ListAPIView):
     def get_queryset(self):
         return ActionLog.objects.filter(action_by=self.request.user).order_by('-timestamp')
 
+class ReportAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        request_type_filter = request.query_params.get("request_type")
+        month_filter = request.query_params.get("month")  # format: YYYY-MM
+
+        # Parse the month filter
+        month_start = None
+        month_end = None
+        if month_filter:
+            try:
+                month_start = datetime.strptime(month_filter, "%Y-%m")
+                # Handle end of month by next month - 1 day
+                if month_start.month == 12:
+                    month_end = datetime(month_start.year + 1, 1, 1)
+                else:
+                    month_end = datetime(month_start.year, month_start.month + 1, 1)
+            except ValueError:
+                return Response({"error": "Invalid month format. Use YYYY-MM."}, status=400)
+
+        vehicles = Vehicle.objects.all()
+        vehicle_reports = []
+
+        for vehicle in vehicles:
+            vehicle_data = {
+                "vehicle": f"{vehicle.model} {vehicle.license_plate}",
+                "requests": [],
+                "request_counts": {
+                    "Transport": 0,
+                    "HighCost": 0,
+                    "Maintenance": 0,
+                    "Refueling": 0,
+                },
+                "total_cost": 0.0,
+            }
+
+            def apply_filters(qs, model_name):
+                if month_start and hasattr(qs.model, "created_at"):
+                    qs = qs.filter(created_at__gte=month_start, created_at__lt=month_end)
+                if request_type_filter and request_type_filter != model_name:
+                    return qs.none()
+                return qs
+
+            # Apply filters
+            transport_requests = apply_filters(
+                TransportRequest.objects.filter(vehicle=vehicle), "Transport"
+            )
+            highcost_requests = apply_filters(
+                HighCostTransportRequest.objects.filter(vehicle=vehicle), "HighCost"
+            )
+            maintenance_requests = apply_filters(
+                MaintenanceRequest.objects.filter(requesters_car=vehicle), "Maintenance"
+            )
+            refueling_requests = apply_filters(
+                RefuelingRequest.objects.filter(requesters_car=vehicle), "Refueling"
+            )
+
+            # Count requests
+            vehicle_data["request_counts"]["Transport"] = transport_requests.count()
+            vehicle_data["request_counts"]["HighCost"] = highcost_requests.count()
+            vehicle_data["request_counts"]["Maintenance"] = maintenance_requests.count()
+            vehicle_data["request_counts"]["Refueling"] = refueling_requests.count()
+
+            # Append requests with count info
+            for req in transport_requests:
+                vehicle_data["requests"].append({
+                    "plate": vehicle.license_plate,
+                    "driver": req.vehicle.driver.full_name if req.vehicle.driver else None,
+                    "kilometers": getattr(req, "estimated_distance", None),
+                    "fuel_liters": None,
+                    "cost": None,
+                    "request_type": "Transport",
+                    "request_type_count": transport_requests.count(),
+                })
+
+            for req in highcost_requests:
+                cost = float(req.total_cost or 0)
+                vehicle_data["requests"].append({
+                    "plate": vehicle.license_plate,
+                    "driver": req.vehicle.driver.full_name if req.vehicle.driver else None,
+                    "kilometers": req.estimated_distance_km,
+                    "fuel_liters": req.fuel_needed_liters,
+                    "cost": req.total_cost,
+                    "request_type": "HighCost",
+                    "request_type_count": highcost_requests.count(),
+                })
+                vehicle_data["total_cost"] += cost
+
+            for req in maintenance_requests:
+                cost = float(req.maintenance_total_cost or 0)
+                vehicle_data["requests"].append({
+                    "plate": vehicle.license_plate,
+                    "driver": req.requesters_car.driver.full_name if req.requesters_car.driver else None,
+                    "kilometers": None,
+                    "fuel_liters": None,
+                    "cost": req.maintenance_total_cost,
+                    "request_type": "Maintenance",
+                    "request_type_count": maintenance_requests.count(),
+                })
+                vehicle_data["total_cost"] += cost
+
+            for req in refueling_requests:
+                cost = float(req.total_cost or 0)
+                vehicle_data["requests"].append({
+                    "plate": vehicle.license_plate,
+                    "driver": req.requesters_car.driver.full_name if req.requesters_car.driver else None,
+                    "kilometers": req.distance,
+                    "fuel_liters": req.fuel_amount,
+                    "cost": req.total_cost,
+                    "request_type": "Refueling",
+                    "request_type_count": refueling_requests.count(),
+                })
+                vehicle_data["total_cost"] += cost
+
+            vehicle_reports.append(vehicle_data)
+
+        paginator = PageNumberPagination()
+        paginated = paginator.paginate_queryset(vehicle_reports, request)
+        return paginator.get_paginated_response({"vehicles": paginated})
