@@ -1063,7 +1063,7 @@ class UserActionLogListView(generics.ListAPIView):
         return ActionLog.objects.filter(action_by=self.request.user).order_by('-timestamp')
 
 class ReportAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsTransportManager]
 
     def get(self, request):
         request_type_filter = request.query_params.get("request_type")
@@ -1169,8 +1169,8 @@ class ReportAPIView(APIView):
                 vehicle_data["requests"].append({
                     "plate": vehicle.license_plate,
                     "driver": req.requesters_car.driver.full_name if req.requesters_car.driver else None,
-                    "kilometers": req.distance,
-                    "fuel_liters": req.fuel_amount,
+                    "kilometers": req.estimated_distance_km,
+                    "fuel_liters": req.fuel_needed_liters,
                     "cost": req.total_cost,
                     "request_type": "Refueling",
                     "request_type_count": refueling_requests.count(),
