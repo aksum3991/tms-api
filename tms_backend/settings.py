@@ -27,7 +27,9 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True 
 EMAIL_HOST_USER=os.getenv("EMAIL_HOST_USER")
 EMAIL_HOST_PASSWORD= os.getenv("EMAIL_HOST_PASSWORD")
-
+SMS_API_KEY = os.getenv("SMS_API_KEY")
+SMS_BASE_URL = os.getenv("SMS_BASE_URL")
+SMS_URL = f"{SMS_BASE_URL}?key={SMS_API_KEY}"
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent

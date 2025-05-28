@@ -1,10 +1,17 @@
+import os
 from django.utils.translation import gettext as _
 from django.utils import timezone
 from datetime import timedelta
+
+import urllib
+from django.conf import settings
+import requests
 from auth_app.models import User
 from django.contrib.contenttypes.models import ContentType
 from .models import ActionLog, HighCostTransportRequest, RefuelingRequest, Vehicle
 from core.models import MaintenanceRequest, TransportRequest, Notification
+import logging
+logger = logging.getLogger(__name__)
 
 
 class NotificationService:
@@ -405,4 +412,23 @@ class RefuelingEstimator:
         total_cost = fuel_needed * price_per_liter * 2
         return round(fuel_needed, 2), round(total_cost, 2)
 
+
+
+def send_sms(phone_number: str, message: str):
+    base_url= settings.SMS_URL
+    if not base_url:
+        raise ValueError("SMS URL is not configured in settings.")
+    escaped_message = urllib.parse.quote(message, safe="")
+    sms_url = f"{base_url}&phonenumber={phone_number}&message={escaped_message}"
+
+    try:
+        response = requests.get(sms_url, timeout=10)
+        response.raise_for_status()
+        try:
+            return response.json()
+        except ValueError:
+            return {"status": "error", "message": "Invalid JSON", "raw": response.text}
+    except requests.exceptions.RequestException as e:
+        logger.error(f"SMS failed for {phone_number}: {e}")
+        raise e
 

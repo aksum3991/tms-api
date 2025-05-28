@@ -11,7 +11,7 @@ from core import serializers
 from core.models import ActionLog, HighCostTransportRequest, MaintenanceRequest, MonthlyKilometerLog, RefuelingRequest, TransportRequest, Vehicle, Notification
 from core.permissions import IsAllowedVehicleUser
 from core.serializers import ActionLogListSerializer, AssignedVehicleSerializer, HighCostTransportRequestDetailSerializer, HighCostTransportRequestSerializer, MaintenanceRequestSerializer, MonthlyKilometerLogSerializer, RefuelingRequestDetailSerializer, RefuelingRequestSerializer, ReportFilterSerializer, TransportRequestSerializer, NotificationSerializer, VehicleSerializer
-from core.services import NotificationService, RefuelingEstimator, log_action
+from core.services import NotificationService, RefuelingEstimator, log_action, send_sms
 from auth_app.models import User
 from django.db.models import Q, Sum
 from django.core.exceptions import ValidationError
@@ -313,6 +313,15 @@ class AssignVehicleAfterBudgetApprovalView(APIView):
             date=highcost_request.start_day.strftime('%Y-%m-%d'),
             start_time=highcost_request.start_time.strftime('%H:%M')
         )
+        try:
+                message = (
+                    f"You are assigned for transport request to {highcost_request.destination} on "
+                    f"{highcost_request.start_day.strftime('%Y-%m-%d')} at {highcost_request.start_time.strftime('%H:%M')} "
+                    f"with vehicle {vehicle.model} ({vehicle.license_plate})."
+                )
+                send_sms(vehicle.driver.phone_number, message)
+        except Exception as sms_error:
+                logger.error(f"Failed to send SMS to driver {vehicle.driver.full_name}: {sms_error}")
         return Response({"message": "Vehicle assigned and status updated successfully."}, status=200)
 
 
@@ -888,7 +897,15 @@ class TransportRequestActionView(APIView):
             transport_request.status = 'approved'
             vehicle.mark_as_in_use()
             log_action(request_obj=transport_request,user=request.user,action="approved",remarks=f"Vehicle: {vehicle.license_plate}")
-
+            try:
+                message = (
+                    f"You are assigned for transport request to {transport_request.destination} on "
+                    f"{transport_request.start_day.strftime('%Y-%m-%d')} at {transport_request.start_time.strftime('%H:%M')} "
+                    f"with vehicle {vehicle.model} ({vehicle.license_plate})."
+                )
+                send_sms(vehicle.driver.phone_number, message)
+            except Exception as sms_error:
+                logger.error(f"Failed to send SMS to driver {vehicle.driver.full_name}: {sms_error}")
         else:
             return Response({"error": f"{current_role} cannot perform {action}."}, status=status.HTTP_403_FORBIDDEN)
 
