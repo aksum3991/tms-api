@@ -13,6 +13,7 @@ from core.views import (
     MaintenanceRequestDetailView,
     MaintenanceRequestListView,
     MaintenanceRequestOwnListView,
+    MarkServicedVehicleAvailableView,
     RefuelingRequestActionView,
     RefuelingRequestCreateView,
     RefuelingRequestDetailView,
@@ -22,6 +23,7 @@ from core.views import (
     ServiceFileSubmissionView,
     ServiceRequestActionView,
     ServiceRequestListView,
+    ServicedVehiclesListView,
     TransportManagerServiceUpdateView,
     TripCompletionView,
     VehiclesDueForServiceView,
@@ -61,4 +63,6 @@ urlpatterns_service=[
     path("<int:vehicle_id>/mark-service/",TransportManagerServiceUpdateView.as_view(),name="service-request-transport-manager-update"),
     path('list/',ServiceRequestListView.as_view(), name="service-request-list"),
     path("vehicles_list/",VehiclesDueForServiceView.as_view(), name="vehicles-due-for-service"),
+    path('serviced-vehicles/', ServicedVehiclesListView.as_view(), name='serviced-vehicles-list'),
+    path('<int:vehicle_id>/mark-available/', MarkServicedVehicleAvailableView.as_view(), name='mark-vehicle-available')
 ]

@@ -120,7 +120,7 @@ class MaintenanceRequestSerializer(serializers.ModelSerializer):
         if date and date < now().date():
             raise serializers.ValidationError({"date": "Date cannot be in the past."})
 
-        if self.instance and user.role == User.GENERAL_SYSTEM_EXECUTER:
+        if self.instance and user.role == User.GENERAL_SYSTEM:
             if not data.get('maintenance_letter') or not data.get('receipt_file') or not data.get('maintenance_total_cost'):
                 raise serializers.ValidationError("Maintenance letter, receipt, and total cost are required at this stage.")
 
@@ -338,4 +338,4 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
             'current_approver_role',
             'created_at',
             'updated_at',
-        ]
+        ]   

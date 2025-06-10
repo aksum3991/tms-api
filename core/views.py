@@ -13,7 +13,7 @@ from core.permissions import IsAllowedVehicleUser
 from core.serializers import ActionLogListSerializer, AssignedVehicleSerializer, HighCostTransportRequestDetailSerializer, HighCostTransportRequestSerializer, MaintenanceRequestSerializer, MonthlyKilometerLogSerializer, RefuelingRequestDetailSerializer, RefuelingRequestSerializer, ReportFilterSerializer, ServiceRequestSerializer, TransportRequestSerializer, NotificationSerializer, VehicleSerializer
 from core.services import NotificationService, RefuelingEstimator, log_action, send_sms
 from auth_app.models import User
-from django.db.models import Q, Sum, F
+from django.db.models import Q, F, OuterRef,Subquery
 from django.core.exceptions import ValidationError
 from rest_framework.generics import RetrieveAPIView
 from django.core.exceptions import PermissionDenied
@@ -1371,3 +1371,54 @@ class TransportManagerServiceUpdateView(APIView):
         )
 
         return Response({'detail': 'Vehicle marked as service and request created.'}, status=200)
+
+class ServicedVehiclesListView(generics.ListAPIView):
+    serializer_class = VehicleSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        if self.request.user.role != User.TRANSPORT_MANAGER:
+            raise PermissionDenied("Only transport managers can access this list.")
+
+        # Get all service requests with approved or rejected status
+        service_requests = ServiceRequest.objects.filter(
+            status__in=['approved', 'rejected']
+        ).order_by('vehicle', '-created_at')
+
+        # For each vehicle, keep only the latest service request
+        latest_requests = {}
+        for req in service_requests:
+            if req.vehicle_id not in latest_requests:
+                latest_requests[req.vehicle_id] = req
+
+        vehicle_ids = latest_requests.keys()
+        return Vehicle.objects.filter(id__in=vehicle_ids)
+
+class MarkServicedVehicleAvailableView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, vehicle_id):
+        if request.user.role != User.TRANSPORT_MANAGER:
+            raise PermissionDenied("Only transport managers can perform this action.")
+
+        vehicle = get_object_or_404(Vehicle, id=vehicle_id)
+
+        try:
+            latest_service_request = ServiceRequest.objects.filter(vehicle=vehicle).latest('created_at')
+        except ServiceRequest.DoesNotExist:
+            return Response({'error': 'No service request found for this vehicle.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if latest_service_request.status not in ['approved', 'rejected']:
+            return Response({
+                'error': 'Vehicle cannot be marked as available until the service request is approved or rejected.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        if vehicle.status == 'available':
+            return Response({'detail': 'Vehicle is already marked as available.'}, status=status.HTTP_200_OK)
+
+        vehicle.status = 'available'
+        vehicle.save()
+
+        # Optionally log this or trigger notification here
+
+        return Response({'detail': 'Vehicle status updated to available.'}, status=status.HTTP_200_OK)
