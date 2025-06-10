@@ -8,12 +8,12 @@ from auth_app.permissions import IsDepartmentManager, IsTransportManager
 from auth_app.serializers import UserDetailSerializer
 from auth_app.services import StandardResultsSetPagination
 from core import serializers
-from core.models import ActionLog, HighCostTransportRequest, MaintenanceRequest, MonthlyKilometerLog, RefuelingRequest, TransportRequest, Vehicle, Notification
+from core.models import ActionLog, HighCostTransportRequest, MaintenanceRequest, MonthlyKilometerLog, RefuelingRequest, ServiceRequest, TransportRequest, Vehicle, Notification
 from core.permissions import IsAllowedVehicleUser
-from core.serializers import ActionLogListSerializer, AssignedVehicleSerializer, HighCostTransportRequestDetailSerializer, HighCostTransportRequestSerializer, MaintenanceRequestSerializer, MonthlyKilometerLogSerializer, RefuelingRequestDetailSerializer, RefuelingRequestSerializer, ReportFilterSerializer, TransportRequestSerializer, NotificationSerializer, VehicleSerializer
+from core.serializers import ActionLogListSerializer, AssignedVehicleSerializer, HighCostTransportRequestDetailSerializer, HighCostTransportRequestSerializer, MaintenanceRequestSerializer, MonthlyKilometerLogSerializer, RefuelingRequestDetailSerializer, RefuelingRequestSerializer, ReportFilterSerializer, ServiceRequestSerializer, TransportRequestSerializer, NotificationSerializer, VehicleSerializer
 from core.services import NotificationService, RefuelingEstimator, log_action, send_sms
 from auth_app.models import User
-from django.db.models import Q, Sum
+from django.db.models import Q, Sum, F
 from django.core.exceptions import ValidationError
 from rest_framework.generics import RetrieveAPIView
 from django.core.exceptions import PermissionDenied
@@ -314,12 +314,12 @@ class AssignVehicleAfterBudgetApprovalView(APIView):
             start_time=highcost_request.start_time.strftime('%H:%M')
         )
         try:
-                message = (
-                    f"You are assigned for transport request to {highcost_request.destination} on "
-                    f"{highcost_request.start_day.strftime('%Y-%m-%d')} at {highcost_request.start_time.strftime('%H:%M')} "
-                    f"with vehicle {vehicle.model} ({vehicle.license_plate})."
-                )
-                send_sms(vehicle.driver.phone_number, message)
+            message = (
+                f"You are assigned for transport request to {highcost_request.destination} on "
+                f"{highcost_request.start_day.strftime('%Y-%m-%d')} at {highcost_request.start_time.strftime('%H:%M')} "
+                f"with vehicle {vehicle.model} ({vehicle.license_plate})."
+            )
+            send_sms(vehicle.driver.phone_number, message)
         except Exception as sms_error:
                 logger.error(f"Failed to send SMS to driver {vehicle.driver.full_name}: {sms_error}")
         return Response({"message": "Vehicle assigned and status updated successfully."}, status=200)
@@ -1199,3 +1199,175 @@ class ReportAPIView(APIView):
         paginator = PageNumberPagination()
         paginated = paginator.paginate_queryset(vehicle_reports, request)
         return paginator.get_paginated_response({"vehicles": paginated})
+
+class VehiclesDueForServiceView(generics.ListAPIView):
+    serializer_class = VehicleSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        if self.request.user.role != User.TRANSPORT_MANAGER:
+            raise PermissionDenied("Only transport managers can view this list.")
+        return Vehicle.objects.filter(
+            total_kilometers__gte=F('last_service_kilometers') + 5000
+        )
+
+class ServiceRequestListView(generics.ListAPIView):
+    queryset = ServiceRequest.objects.all()
+    serializer_class = ServiceRequestSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.role == user.GENERAL_SYSTEM:
+            return ServiceRequest.objects.filter(status='pending', current_approver_role=User.GENERAL_SYSTEM)
+        elif user.role == user.CEO:
+            return ServiceRequest.objects.filter(status='forwarded',current_approver_role=User.CEO)
+        elif user.role == user.BUDGET_MANAGER:
+            return ServiceRequest.objects.filter(status='forwarded', current_approver_role=User.BUDGET_MANAGER)
+        elif user.role == user.FINANCE_MANAGER:
+
+            return ServiceRequest.objects.filter(status='approved')
+        return ServiceRequest.objects.filter(requester=user)
+
+class ServiceRequestActionView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+   
+    def get_next_approver_role(self, current_role):
+        role_hierarchy = {
+            User.GENERAL_SYSTEM: User.CEO,
+            User.CEO: User.BUDGET_MANAGER,
+        }
+        return role_hierarchy.get(current_role, None)
+
+    def post(self, request, request_id):
+        service_request = get_object_or_404(ServiceRequest, id=request_id)
+        action = request.data.get("action")
+
+        if action not in ['forward', 'reject', 'approve']:
+            return Response({"error": "Invalid action."}, status=status.HTTP_400_BAD_REQUEST)
+
+        current_role = request.user.role
+
+        if current_role != service_request.current_approver_role:
+            return Response({"error": "You are not authorized to act on this request."}, status=status.HTTP_403_FORBIDDEN)
+
+        if action == 'forward':
+            if current_role == User.GENERAL_SYSTEM:
+                missing = []
+                if not service_request.service_letter:
+                    missing.append('service_letter')
+                if not service_request.receipt_file:
+                    missing.append('receipt_file')
+                if service_request.service_total_cost is None:
+                    missing.append('service_total_cost')
+
+                if missing:
+                    return Response(
+                        {"error": f"The following files must be submitted before forwarding: {', '.join(missing)}"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+            next_role = self.get_next_approver_role(current_role)
+            if not next_role:
+                return Response({"error": "No further approver available."}, status=status.HTTP_400_BAD_REQUEST)
+
+            service_request.status = 'forwarded'
+            service_request.current_approver_role = next_role
+            service_request.save()
+            # log_action(request_obj=service_request, user=request.user, action="forwarded", remarks=request.data.get("remarks"))
+
+            # next_approvers = User.objects.filter(role=next_role, is_active=True)
+            # for approver in next_approvers:
+            #     NotificationService.send_service_notification('service_forwarded', service_request, approver)
+
+            return Response({"message": "Request forwarded successfully."}, status=status.HTTP_200_OK)
+
+        elif action == 'reject':
+            rejection_message = request.data.get("rejection_message", "").strip()
+            if not rejection_message:
+                return Response({"error": "Rejection message is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+            service_request.status = 'rejected'
+            service_request.rejection_reason = rejection_message
+            service_request.save()
+            # log_action(request_obj=service_request, user=request.user, action="rejected", remarks=rejection_message)
+
+            # NotificationService.send_service_notification(
+            #     'service_rejected', service_request, service_request.created_by,
+            #     rejector=request.user.get_full_name(), rejection_reason=rejection_message
+            # )
+
+            return Response({"message": "Request rejected successfully."}, status=status.HTTP_200_OK)
+
+        elif action == 'approve':
+            if current_role == User.BUDGET_MANAGER:
+                service_request.status = 'approved'
+                service_request.save()
+                # log_action(request_obj=service_request, user=request.user, action="approved", remarks=request.data.get("remarks"))
+
+                # NotificationService.send_service_notification(
+                #     'service_approved', service_request, service_request.created_by,
+                #     approver=request.user.get_full_name()
+                # )
+
+                finance_managers = User.objects.filter(role=User.FINANCE_MANAGER, is_active=True)
+                # for fm in finance_managers:
+                #     NotificationService.send_service_notification('service_approved', service_request, recipient=fm)
+
+                return Response({"message": "Request approved successfully and finance notified."}, status=status.HTTP_200_OK)
+
+            else:
+                return Response({
+                    "error": f"{request.user.get_role_display()} cannot approve this request at this stage."
+                }, status=status.HTTP_403_FORBIDDEN)
+
+        return Response({"error": "Unexpected action or failure."}, status=status.HTTP_400_BAD_REQUEST)
+    
+class ServiceFileSubmissionView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def patch(self, request, request_id):
+        service_request = get_object_or_404(ServiceRequest, id=request_id)
+
+        if request.user.role != User.GENERAL_SYSTEM:
+            return Response({"error": "Only General System can perform this action."}, status=status.HTTP_403_FORBIDDEN)
+
+        # Handle file uploads
+        service_letter = request.FILES.get("service_letter")
+        receipt_file = request.FILES.get("receipt_file")
+        total_cost = request.data.get("service_total_cost")
+
+        if not service_letter or not receipt_file or not total_cost:
+            return Response({"error": "All fields are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        service_request.service_letter = service_letter
+        service_request.receipt_file = receipt_file
+        service_request.service_total_cost = total_cost
+        service_request.save()
+
+        return Response({"message": "Files submitted successfully."}, status=status.HTTP_200_OK)
+
+class TransportManagerServiceUpdateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, vehicle_id):
+        if request.user.role != User.TRANSPORT_MANAGER:
+            raise PermissionDenied("Only transport managers can perform this action.")
+
+        vehicle = get_object_or_404(Vehicle, id=vehicle_id)
+        
+        if (vehicle.total_kilometers - vehicle.last_service_kilometers) < 5000:
+            return Response({'detail': 'Vehicle does not meet the 5000 km threshold.'}, status=400)
+
+        # Update service-related info
+        vehicle.last_service_kilometers = vehicle.total_kilometers
+        vehicle.mark_as_service()
+
+        # Auto-create service request
+        ServiceRequest.objects.create(
+            vehicle=vehicle,
+            current_approver_role=User.GENERAL_SYSTEM
+        )
+
+        return Response({'detail': 'Vehicle marked as service and request created.'}, status=200)

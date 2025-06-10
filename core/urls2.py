@@ -19,7 +19,12 @@ from core.views import (
     RefuelingRequestEstimateView,
     RefuelingRequestListView,
     RefuelingRequestOwnListView,
+    ServiceFileSubmissionView,
+    ServiceRequestActionView,
+    ServiceRequestListView,
+    TransportManagerServiceUpdateView,
     TripCompletionView,
+    VehiclesDueForServiceView,
 )
 
 urlpatterns = [
@@ -48,4 +53,12 @@ urlpatterns_highcost = [
    path('<int:request_id>/action/',HighCostTransportRequestActionView.as_view(),name="highcost-request-action"),
    path('<int:request_id>/assign-vehicle/', AssignVehicleAfterBudgetApprovalView.as_view(),name='highcost-request-vehicle-assign'),
    path('<int:request_id>/complete-trip/', TripCompletionView.as_view(), name='complete-trip-highcost-request')
+]
+
+urlpatterns_service=[
+    path("<int:request_id>/action/",ServiceRequestActionView.as_view(),name="service-request-action"),
+    path("<int:request_id>/submit-files/",ServiceFileSubmissionView.as_view(),name="service-request-file-submission"),
+    path("<int:vehicle_id>/mark-service/",TransportManagerServiceUpdateView.as_view(),name="service-request-transport-manager-update"),
+    path('list/',ServiceRequestListView.as_view(), name="service-request-list"),
+    path("vehicles_list/",VehiclesDueForServiceView.as_view(), name="vehicles-due-for-service"),
 ]

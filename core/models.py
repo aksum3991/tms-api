@@ -273,6 +273,31 @@ class RefuelingRequest(models.Model):
     def __str__(self):
         return f"{self.requester} - {self.status} - {self.requesters_car.license_plate}"
     
+class ServiceRequest(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('forwarded', 'Forwarded'),
+        ('rejected', 'Rejected'),
+        ('approved', 'Approved'),
+    ]
+
+    vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    rejection_reason = models.TextField(null=True, blank=True)
+
+    service_letter = models.FileField(upload_to='service_letters/', null=True, blank=True)
+    receipt_file = models.FileField(upload_to='service_receipts/', null=True, blank=True)
+    service_total_cost = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+
+    current_approver_role = models.PositiveSmallIntegerField(choices=User.ROLE_CHOICES, default=User.TRANSPORT_MANAGER)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"ServiceRequest {self.id} for Vehicle {self.vehicle.model} - Status: {self.status}"
+
+    
 class ActionLog(models.Model):
     ACTION_CHOICES = [
         ('forwarded', 'Forwarded'),

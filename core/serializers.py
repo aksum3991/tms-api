@@ -4,7 +4,7 @@ from rest_framework import serializers
 from auth_app.models import User
 from django.utils.timezone import now 
 from auth_app.serializers import UserDetailSerializer
-from core.models import ActionLog, HighCostTransportRequest, MaintenanceRequest, MonthlyKilometerLog, RefuelingRequest, TransportRequest, Vehicle, Notification
+from core.models import ActionLog, HighCostTransportRequest, MaintenanceRequest, MonthlyKilometerLog, RefuelingRequest, ServiceRequest, TransportRequest, Vehicle, Notification
 
 class TransportRequestSerializer(serializers.ModelSerializer):
     requester = serializers.ReadOnlyField(source='requester.get_full_name')
@@ -317,3 +317,25 @@ class ReportFilterSerializer(serializers.Serializer):
         required=False
     )
     status = serializers.CharField(required=False)
+
+class ServiceRequestSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ServiceRequest
+        fields = [
+            'id',
+            'vehicle',
+            'status',
+            'rejection_reason',
+            'service_letter',
+            'receipt_file',
+            'service_total_cost',
+            'current_approver_role',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = [
+            'status',
+            'current_approver_role',
+            'created_at',
+            'updated_at',
+        ]
