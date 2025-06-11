@@ -321,21 +321,14 @@ class ReportFilterSerializer(serializers.Serializer):
 class ServiceRequestSerializer(serializers.ModelSerializer):
     class Meta:
         model = ServiceRequest
-        fields = [
-            'id',
-            'vehicle',
-            'status',
-            'rejection_reason',
-            'service_letter',
-            'receipt_file',
-            'service_total_cost',
-            'current_approver_role',
-            'created_at',
-            'updated_at',
-        ]
-        read_only_fields = [
-            'status',
-            'current_approver_role',
-            'created_at',
-            'updated_at',
-        ]   
+        fields = ['id','vehicle','status','rejection_reason','current_approver_role','created_at','updated_at',]
+        read_only_fields = ['status','current_approver_role','created_at','updated_at',]  
+
+class ServiceRequestDetailSerializer(serializers.ModelSerializer):
+    vehicle = serializers.StringRelatedField()
+    requester = serializers.StringRelatedField()
+
+    class Meta:
+        model = ServiceRequest
+        fields = '__all__'
+        read_only_fields = ['status', 'current_approver_role', 'created_at', 'updated_at'] 

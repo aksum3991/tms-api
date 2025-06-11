@@ -10,7 +10,7 @@ from auth_app.services import StandardResultsSetPagination
 from core import serializers
 from core.models import ActionLog, HighCostTransportRequest, MaintenanceRequest, MonthlyKilometerLog, RefuelingRequest, ServiceRequest, TransportRequest, Vehicle, Notification
 from core.permissions import IsAllowedVehicleUser
-from core.serializers import ActionLogListSerializer, AssignedVehicleSerializer, HighCostTransportRequestDetailSerializer, HighCostTransportRequestSerializer, MaintenanceRequestSerializer, MonthlyKilometerLogSerializer, RefuelingRequestDetailSerializer, RefuelingRequestSerializer, ReportFilterSerializer, ServiceRequestSerializer, TransportRequestSerializer, NotificationSerializer, VehicleSerializer
+from core.serializers import ActionLogListSerializer, AssignedVehicleSerializer, HighCostTransportRequestDetailSerializer, HighCostTransportRequestSerializer, MaintenanceRequestSerializer, MonthlyKilometerLogSerializer, RefuelingRequestDetailSerializer, RefuelingRequestSerializer, ReportFilterSerializer, ServiceRequestDetailSerializer, ServiceRequestSerializer, TransportRequestSerializer, NotificationSerializer, VehicleSerializer
 from core.services import NotificationService, RefuelingEstimator, log_action, send_sms
 from auth_app.models import User
 from django.db.models import Q, F, OuterRef,Subquery
@@ -1422,3 +1422,24 @@ class MarkServicedVehicleAvailableView(APIView):
         # Optionally log this or trigger notification here
 
         return Response({'detail': 'Vehicle status updated to available.'}, status=status.HTTP_200_OK)
+
+class ServiceRequestDetailView(RetrieveAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = ServiceRequestDetailSerializer
+    queryset = ServiceRequest.objects.all()
+
+    def get(self, request, *args, **kwargs):
+        service_request = self.get_object()
+
+        if request.user.role not in [
+            User.TRANSPORT_MANAGER,
+            User.GENERAL_SYSTEM,
+            User.CEO,
+            User.BUDGET_MANAGER,
+            User.FINANCE_MANAGER,
+            User.DRIVER,
+        ]:
+            return Response({"error": "Access denied."}, status=403)
+
+        serializer = self.get_serializer(service_request)
+        return Response(serializer.data)
