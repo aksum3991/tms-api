@@ -901,7 +901,7 @@ class TransportRequestActionView(APIView):
                 message = (
                     f"You are assigned for transport request to {transport_request.destination} on "
                     f"{transport_request.start_day.strftime('%Y-%m-%d')} at {transport_request.start_time.strftime('%H:%M')} "
-                    f"with vehicle {vehicle.model} ({vehicle.license_plate})."
+                    f"with vehicle {vehicle.model} ({vehicle.license_plate}) and employees {transport_request.employees}. " 
                 )
                 send_sms(vehicle.driver.phone_number, message)
             except Exception as sms_error:
@@ -1227,7 +1227,7 @@ class ServiceRequestListView(generics.ListAPIView):
         elif user.role == user.FINANCE_MANAGER:
 
             return ServiceRequest.objects.filter(status='approved')
-        return ServiceRequest.objects.filter(requester=user)
+        return ServiceRequest.objects.none()
 
 class ServiceRequestActionView(APIView):
     permission_classes = [permissions.IsAuthenticated]

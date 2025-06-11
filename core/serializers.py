@@ -322,7 +322,7 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ServiceRequest
-        fields = ['id','vehicle','status','rejection_reason','current_approver_role','created_at','updated_at',]
+        fields = ['id','vehicle','status','rejection_reason','current_approver_role','created_at','updated_at']
         read_only_fields = ['status','current_approver_role','created_at','updated_at',]  
 
 class ServiceRequestDetailSerializer(serializers.ModelSerializer):
