@@ -1,6 +1,5 @@
 from datetime import datetime
 from rest_framework import serializers
-
 from auth_app.models import User
 from django.utils.timezone import now 
 from auth_app.serializers import UserDetailSerializer
@@ -214,7 +213,7 @@ class HighCostTransportRequestSerializer(serializers.ModelSerializer):
 
         return data
     
-    def create(self, validated_data):
+    def create(self, validated_data): 
         employees = validated_data.pop('employees',[])
         request = self.context.get('request')
         if request and request.user.is_authenticated:
@@ -319,6 +318,8 @@ class ReportFilterSerializer(serializers.Serializer):
     status = serializers.CharField(required=False)
 
 class ServiceRequestSerializer(serializers.ModelSerializer):
+    vehicle = serializers.StringRelatedField()
+
     class Meta:
         model = ServiceRequest
         fields = ['id','vehicle','status','rejection_reason','current_approver_role','created_at','updated_at',]
@@ -326,7 +327,6 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
 
 class ServiceRequestDetailSerializer(serializers.ModelSerializer):
     vehicle = serializers.StringRelatedField()
-    requester = serializers.StringRelatedField()
 
     class Meta:
         model = ServiceRequest
