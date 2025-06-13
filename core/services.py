@@ -432,3 +432,23 @@ def send_sms(phone_number: str, message: str):
         logger.error(f"SMS failed for {phone_number}: {e}")
         raise e
 
+import cv2
+import numpy as np
+import tempfile
+
+def compare_signatures(user_signature_path, uploaded_signature_file, threshold=35):
+    # Save uploaded signature temporarily
+    with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as temp_file:
+        for chunk in uploaded_signature_file.chunks():
+            temp_file.write(chunk)
+        temp_signature_path = temp_file.name
+
+    # Read images in grayscale
+    img1 = cv2.imread(user_signature_path, 0)
+    img2 = cv2.imread(temp_signature_path, 0)
+    img1 = cv2.resize(img1, (300, 100))
+    img2 = cv2.resize(img2, (300, 100))
+    result = cv2.matchTemplate(img1, img2, cv2.TM_CCOEFF_NORMED)
+    similarity = result.max() * 100  # Convert to percentage
+
+    return similarity, similarity >= threshold

@@ -17,6 +17,7 @@ channels-redis = "*"
 daphne = "*"
 django-cors-headers = "*"
 requests = "*"
+opencv-python = "*"
 
 [dev-packages]
 

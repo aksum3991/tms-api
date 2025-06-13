@@ -898,16 +898,29 @@ class TransportRequestActionView(APIView):
             vehicle.mark_as_in_use()
             log_action(request_obj=transport_request,user=request.user,action="approved",remarks=f"Vehicle: {vehicle.license_plate}")
             try:
-                message = (
-                    f"You are assigned for transport request to {transport_request.destination} on "
-                    f"{transport_request.start_day.strftime('%Y-%m-%d')} at {transport_request.start_time.strftime('%H:%M')} "
-                    f"with vehicle {vehicle.model} ({vehicle.license_plate}) and employees {transport_request.employees}. " 
+                # Get employee full names
+                employee_names = list(
+                    transport_request.employees.exclude(id=transport_request.requester_id)
+                    .values_list('full_name', flat=True)
                 )
+
+                # Format the names into a string
+                if employee_names:
+                    group_info = " With Employees: " + ", ".join(employee_names) + "."
+                else:
+                    group_info = ""
+
+                # Construct the message
+                message = (
+                    f"You are assigned for a transport request to {transport_request.destination} on "
+                    f"{transport_request.start_day.strftime('%Y-%m-%d')} at {transport_request.start_time.strftime('%H:%M')} "
+                    f"with vehicle {vehicle.model} ({vehicle.license_plate}).{group_info}"
+                )
+
                 send_sms(vehicle.driver.phone_number, message)
+
             except Exception as sms_error:
                 logger.error(f"Failed to send SMS to driver {vehicle.driver.full_name}: {sms_error}")
-        else:
-            return Response({"error": f"{current_role} cannot perform {action}."}, status=status.HTTP_403_FORBIDDEN)
 
         transport_request.save()
         return Response({"message": f"Request {action}ed successfully."}, status=status.HTTP_200_OK)
@@ -1274,7 +1287,7 @@ class ServiceRequestActionView(APIView):
             service_request.status = 'forwarded'
             service_request.current_approver_role = next_role
             service_request.save()
-            # log_action(request_obj=service_request, user=request.user, action="forwarded", remarks=request.data.get("remarks"))
+            log_action(request_obj=service_request, user=request.user, action="forwarded", remarks=request.data.get("remarks"))
 
             # next_approvers = User.objects.filter(role=next_role, is_active=True)
             # for approver in next_approvers:
@@ -1290,7 +1303,7 @@ class ServiceRequestActionView(APIView):
             service_request.status = 'rejected'
             service_request.rejection_reason = rejection_message
             service_request.save()
-            # log_action(request_obj=service_request, user=request.user, action="rejected", remarks=rejection_message)
+            log_action(request_obj=service_request, user=request.user, action="rejected", remarks=rejection_message)
 
             # NotificationService.send_service_notification(
             #     'service_rejected', service_request, service_request.created_by,
@@ -1303,12 +1316,12 @@ class ServiceRequestActionView(APIView):
             if current_role == User.BUDGET_MANAGER:
                 service_request.status = 'approved'
                 service_request.save()
-                # log_action(request_obj=service_request, user=request.user, action="approved", remarks=request.data.get("remarks"))
+                log_action(request_obj=service_request, user=request.user, action="approved", remarks=request.data.get("remarks"))
 
-                # NotificationService.send_service_notification(
-                #     'service_approved', service_request, service_request.created_by,
-                #     approver=request.user.get_full_name()
-                # )
+                NotificationService.send_service_notification(
+                    'service_approved', service_request, service_request.created_by,
+                    approver=request.user.get_full_name()
+                )
 
                 finance_managers = User.objects.filter(role=User.FINANCE_MANAGER, is_active=True)
                 # for fm in finance_managers:
