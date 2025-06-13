@@ -715,7 +715,8 @@ class MaintenanceRequestActionView(APIView):
                         {"error": f"The following files must be submitted before forwarding: {', '.join(missing)}"},
                         status=status.HTTP_400_BAD_REQUEST
                     )
-
+            if current_role == User.TRANSPORT_MANAGER:
+                maintenance_request.requesters_car.mark_as_maintenance()
             next_role = self.get_next_approver_role(current_role)
             if not next_role:
                 return Response({"error": "No further approver available."}, status=status.HTTP_400_BAD_REQUEST)
