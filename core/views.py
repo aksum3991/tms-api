@@ -1319,10 +1319,10 @@ class ServiceRequestActionView(APIView):
                 service_request.save()
                 log_action(request_obj=service_request, user=request.user, action="approved", remarks=request.data.get("remarks"))
 
-                NotificationService.send_service_notification(
-                    'service_approved', service_request, service_request.created_by,
-                    approver=request.user.get_full_name()
-                )
+                # NotificationService.send_service_notification(
+                #     'service_approved', service_request, service_request.created_by,
+                #     approver=request.user.get_full_name()
+                # )
 
                 finance_managers = User.objects.filter(role=User.FINANCE_MANAGER, is_active=True)
                 # for fm in finance_managers:
@@ -1394,19 +1394,19 @@ class ServicedVehiclesListView(generics.ListAPIView):
         if self.request.user.role != User.TRANSPORT_MANAGER:
             raise PermissionDenied("Only transport managers can access this list.")
 
-        # Get all service requests with approved or rejected status
-        service_requests = ServiceRequest.objects.filter(
-            status__in=['approved', 'rejected']
-        ).order_by('vehicle', '-created_at')
+        # Subquery to get the status of the latest service request for each vehicle
+        latest_request_status = ServiceRequest.objects.filter(
+            vehicle=OuterRef('pk')
+        ).order_by('-created_at').values('status')[:1]
 
-        # For each vehicle, keep only the latest service request
-        latest_requests = {}
-        for req in service_requests:
-            if req.vehicle_id not in latest_requests:
-                latest_requests[req.vehicle_id] = req
-
-        vehicle_ids = latest_requests.keys()
-        return Vehicle.objects.filter(id__in=vehicle_ids)
+        # Only include vehicles whose latest service request is approved or rejected
+        # AND whose current status is 'service'
+        return Vehicle.objects.annotate(
+            latest_status=Subquery(latest_request_status)
+        ).filter(
+            latest_status__in=['approved', 'rejected'],
+            status=Vehicle.SERVICE  # Make sure this matches your model's constant
+        )
 
 class MarkServicedVehicleAvailableView(APIView):
     permission_classes = [permissions.IsAuthenticated]
