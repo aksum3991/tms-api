@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.urls import include, path
 from auth_app.urls import urlpatterns as auth_urls
+from core.reportviews import TransportReportView
 from core.urls import urlpatterns as core_urls
 from core.urls2 import urlpatterns as maintenance_urls
 from core.urls2 import urlpatterns_refueling as refueling_urls
@@ -30,6 +31,7 @@ urlpatterns = [
     path('vehicles/kilometer-logs/', MyMonthlyKilometerLogsListView.as_view(), name='my-kilometer-logs'),
     path("action-logs/", UserActionLogListView.as_view(), name="user-action-log-list"),
     path("action-logs/<int:pk>/", UserActionLogDetailView.as_view(), name="user-action-log-detail"),
+    path('transport-report/', TransportReportView.as_view(), name='transport-report'),
     path('report/', ReportAPIView.as_view(), name='report-api'),
     path("service-requests/", include(service_urls)),
     path("dashboard/",include(dashboard_urls)),

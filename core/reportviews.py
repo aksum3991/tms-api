@@ -1,10 +1,10 @@
 from django.shortcuts import get_object_or_404
-from rest_framework import permissions
+from rest_framework import permissions , status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from core.models import ActionLog, HighCostTransportRequest, MaintenanceRequest, MonthlyKilometerLog, RefuelingRequest, ServiceRequest, TransportRequest, Vehicle, Notification
 from django.db.models.functions import TruncMonth
-from django.db.models import Count
+from django.db.models import Count,Sum, Q
 from datetime import datetime
 from auth_app.permissions import  IsTransportManager
 from itertools import chain
@@ -143,3 +143,129 @@ class RecentVehicleRequestsAPIView(APIView):
             })
 
         return Response({"results": results})
+    
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import permissions, status
+from django.db.models import Sum, Q
+from .models import (
+    MaintenanceRequest, RefuelingRequest,
+    HighCostTransportRequest, ServiceRequest,
+    Vehicle, User
+)
+
+class TransportReportView(APIView):
+    permission_classes = [permissions.IsAuthenticated]  # Add IsTransportManager if needed
+
+    def get(self, request):
+        request_type = request.GET.get('requesttype', 'all')
+        vehicle_id = request.GET.get('vehicle')
+        driver_id = request.GET.get('driver')
+        month = request.GET.get('month')  # Format: 'YYYY-MM' or 'all'
+
+        model_configs = [
+            {
+                'label': 'Maintenance',
+                'model': MaintenanceRequest,
+                'cost_field': 'maintenance_total_cost',
+                'vehicle_field': 'requesters_car',
+                'driver_field': 'requester',
+                'kilometers_field': None,
+                'fuel_field': None,
+            },
+            {
+                'label': 'Refueling',
+                'model': RefuelingRequest,
+                'cost_field': 'total_cost',
+                'vehicle_field': 'requesters_car',
+                'driver_field': 'requester',
+                'kilometers_field': 'estimated_distance_km',
+                'fuel_field': 'fuel_needed_liters',
+            },
+            {
+                'label': 'HighCost',
+                'model': HighCostTransportRequest,
+                'cost_field': 'total_cost',
+                'vehicle_field': 'vehicle',
+                'driver_field': 'requester',
+                'kilometers_field': 'estimated_distance_km',
+                'fuel_field': 'fuel_needed_liters',
+            },
+            {
+                'label': 'Service',
+                'model': ServiceRequest,
+                'cost_field': 'service_total_cost',
+                'vehicle_field': 'vehicle',
+                'driver_field': None,  # No driver field
+                'kilometers_field': None,
+                'fuel_field': None,
+            },
+        ]
+
+        if request_type != 'all':
+            model_configs = [cfg for cfg in model_configs if cfg['label'].lower() == request_type.lower()]
+
+        total_requests = 0
+        total_cost = 0
+        by_type = []
+        detailed = []
+
+        for cfg in model_configs:
+            filter_q = Q()
+            # Vehicle filter
+            if vehicle_id and vehicle_id != 'all':
+                filter_q &= Q(**{f"{cfg['vehicle_field']}_id": vehicle_id})
+            # Driver filter
+            if driver_id and driver_id != 'all' and cfg['driver_field']:
+                filter_q &= Q(**{f"{cfg['driver_field']}_id": driver_id})
+            # Month filter
+            if month and month != 'all':
+                try:
+                    year, month_num = map(int, month.split('-'))
+                    filter_q &= Q(created_at__year=year, created_at__month=month_num)
+                except Exception:
+                    pass
+
+            qs = cfg['model'].objects.filter(filter_q)
+            count = qs.count()
+            cost = qs.aggregate(total=Sum(cfg['cost_field']))['total'] or 0
+            total_requests += count
+            total_cost += cost
+            by_type.append({
+                'type': cfg['label'],
+                'requests': count,
+                'cost': cost
+            })
+
+            for req in qs:
+                # Vehicle plate
+                vehicle = getattr(req, cfg['vehicle_field'], None)
+                plate = getattr(vehicle, 'license_plate', '-') if vehicle else '-'
+                # Driver name
+                driver = getattr(req, cfg['driver_field'], None) if cfg['driver_field'] else None
+                driver_name = getattr(driver, 'full_name', '-') if driver else '-'
+                # Kilometers
+                kilometers = getattr(req, cfg['kilometers_field'], None) if cfg['kilometers_field'] else None
+                # Fuel
+                fuel = getattr(req, cfg['fuel_field'], None) if cfg['fuel_field'] else None
+                # Cost
+                cost_value = getattr(req, cfg['cost_field'], None)
+                cost_value = float(cost_value) if cost_value is not None else None
+
+                detailed.append({
+                    'year_month': req.created_at.strftime('%Y/%m'),
+                    'plate': plate,
+                    'driver': driver_name,
+                    'request_type': cfg['label'],
+                    'request_count': 1,
+                    'kilometers': kilometers if kilometers is not None else '-',
+                    'fuel': fuel if fuel is not None else '-',
+                    'cost': cost_value if cost_value is not None else '-'
+                })
+
+        return Response({
+            'total_requests': total_requests,
+            'total_cost': total_cost,
+            'by_type': by_type,
+            'detailed': detailed
+        }, status=status.HTTP_200_OK)
