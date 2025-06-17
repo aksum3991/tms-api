@@ -7,7 +7,6 @@ from rest_framework.response import Response
 from auth_app.permissions import IsDepartmentManager, IsTransportManager
 from auth_app.serializers import UserDetailSerializer
 from core import serializers
-from core.mixins import SignatureVerificationMixin
 from core.models import ActionLog, HighCostTransportRequest, MaintenanceRequest, MonthlyKilometerLog, RefuelingRequest, ServiceRequest, TransportRequest, Vehicle, Notification
 from core.permissions import IsAllowedVehicleUser
 from core.serializers import ActionLogListSerializer, AssignedVehicleSerializer, HighCostTransportRequestDetailSerializer, HighCostTransportRequestSerializer, MaintenanceRequestSerializer, MonthlyKilometerLogSerializer, RefuelingRequestDetailSerializer, RefuelingRequestSerializer, ReportFilterSerializer, ServiceRequestDetailSerializer, ServiceRequestSerializer, TransportRequestSerializer, NotificationSerializer, VehicleSerializer
@@ -112,7 +111,7 @@ class HighCostTransportRequestListView(generics.ListAPIView):
             return HighCostTransportRequest.objects.filter(vehicle__driver=user,status='approved')  # Optional: restrict to approved requests only
         return HighCostTransportRequest.objects.filter(requester=user)
 
-class HighCostTransportRequestActionView(SignatureVerificationMixin,APIView):
+class HighCostTransportRequestActionView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_next_approver_role(self, current_role):
@@ -534,7 +533,7 @@ class RefuelingRequestDetailView(RetrieveAPIView):
         serializer = self.get_serializer(refueling_request)
         return Response(serializer.data)
 
-class RefuelingRequestActionView(SignatureVerificationMixin,APIView):
+class RefuelingRequestActionView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_next_approver_role(self, current_role):
@@ -677,7 +676,7 @@ class MaintenanceRequestDetailView(generics.RetrieveAPIView):
 
         return obj
     
-class MaintenanceRequestActionView(SignatureVerificationMixin,APIView):
+class MaintenanceRequestActionView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_next_approver_role(self, current_role):
@@ -823,7 +822,7 @@ class MaintenanceFileSubmissionView(APIView):
         return Response({"message": "Maintenance files and cost submitted successfully."}, status=status.HTTP_200_OK)
 
 
-class TransportRequestActionView(SignatureVerificationMixin,APIView):
+class TransportRequestActionView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_next_approver_role(self, current_role):
@@ -1251,7 +1250,7 @@ class ServiceRequestListView(generics.ListAPIView):
             return ServiceRequest.objects.filter(status='approved')
         return ServiceRequest.objects.none()
 
-class ServiceRequestActionView(SignatureVerificationMixin,APIView):
+class ServiceRequestActionView(APIView):
     permission_classes = [permissions.IsAuthenticated]
    
     def get_next_approver_role(self, current_role):
