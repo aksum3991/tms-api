@@ -6,12 +6,12 @@ from rest_framework.viewsets import ModelViewSet
 from rest_framework.response import Response
 from auth_app.permissions import IsDepartmentManager, IsTransportManager
 from auth_app.serializers import UserDetailSerializer
-from auth_app.services import StandardResultsSetPagination
 from core import serializers
+from core.mixins import SignatureVerificationMixin
 from core.models import ActionLog, HighCostTransportRequest, MaintenanceRequest, MonthlyKilometerLog, RefuelingRequest, ServiceRequest, TransportRequest, Vehicle, Notification
 from core.permissions import IsAllowedVehicleUser
 from core.serializers import ActionLogListSerializer, AssignedVehicleSerializer, HighCostTransportRequestDetailSerializer, HighCostTransportRequestSerializer, MaintenanceRequestSerializer, MonthlyKilometerLogSerializer, RefuelingRequestDetailSerializer, RefuelingRequestSerializer, ReportFilterSerializer, ServiceRequestDetailSerializer, ServiceRequestSerializer, TransportRequestSerializer, NotificationSerializer, VehicleSerializer
-from core.services import NotificationService, RefuelingEstimator, log_action, send_sms
+from core.services import NotificationService, RefuelingEstimator, compare_signatures, log_action, send_sms
 from auth_app.models import User
 from django.db.models import Q, F, OuterRef,Subquery
 from django.core.exceptions import ValidationError
@@ -112,7 +112,7 @@ class HighCostTransportRequestListView(generics.ListAPIView):
             return HighCostTransportRequest.objects.filter(vehicle__driver=user,status='approved')  # Optional: restrict to approved requests only
         return HighCostTransportRequest.objects.filter(requester=user)
 
-class HighCostTransportRequestActionView(APIView):
+class HighCostTransportRequestActionView(SignatureVerificationMixin,APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_next_approver_role(self, current_role):
@@ -133,7 +133,9 @@ class HighCostTransportRequestActionView(APIView):
 
         if action not in ['forward', 'reject', 'approve']:
             return Response({"error": "Invalid action."}, status=400)
-
+        # error_response = self.verify_signature(request)
+        # if error_response:
+        #     return error_response
         # ========== FORWARD ==========
         if action == 'forward':
             if current_role == User.TRANSPORT_MANAGER:
@@ -532,7 +534,7 @@ class RefuelingRequestDetailView(RetrieveAPIView):
         serializer = self.get_serializer(refueling_request)
         return Response(serializer.data)
 
-class RefuelingRequestActionView(APIView):
+class RefuelingRequestActionView(SignatureVerificationMixin,APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_next_approver_role(self, current_role):
@@ -554,7 +556,9 @@ class RefuelingRequestActionView(APIView):
         current_role = request.user.role
         if current_role != refueling_request.current_approver_role:
             return Response({"error": "You are not authorized to act on this request."}, status=status.HTTP_403_FORBIDDEN)
-
+        # error_response = self.verify_signature(request)
+        # if error_response:
+        #     return error_response
         # ====== FORWARD ACTION ======
         if action == 'forward':
             if current_role == User.TRANSPORT_MANAGER:
@@ -673,7 +677,7 @@ class MaintenanceRequestDetailView(generics.RetrieveAPIView):
 
         return obj
     
-class MaintenanceRequestActionView(APIView):
+class MaintenanceRequestActionView(SignatureVerificationMixin,APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_next_approver_role(self, current_role):
@@ -696,7 +700,9 @@ class MaintenanceRequestActionView(APIView):
 
         if current_role != maintenance_request.current_approver_role:
             return Response({"error": "You are not authorized to act on this request."}, status=status.HTTP_403_FORBIDDEN)
-
+        # error_response = self.verify_signature(request)
+        # if error_response:
+        #     return error_response
         # ===== FORWARD LOGIC =====
         if action == 'forward':
             # General System MUST submit files and cost before forwarding
@@ -817,7 +823,7 @@ class MaintenanceFileSubmissionView(APIView):
         return Response({"message": "Maintenance files and cost submitted successfully."}, status=status.HTTP_200_OK)
 
 
-class TransportRequestActionView(APIView):
+class TransportRequestActionView(SignatureVerificationMixin,APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_next_approver_role(self, current_role):
@@ -838,7 +844,9 @@ class TransportRequestActionView(APIView):
                 {"error": "You can only manage requests from employees in your department."},
                 status=status.HTTP_403_FORBIDDEN
             )
-
+        # error_response = self.verify_signature(request)
+        # if error_response:
+        #     return error_response
         current_role = request.user.role
         if current_role != transport_request.current_approver_role:
             return Response({"error": "You are not authorized to act on this request."}, status=status.HTTP_403_FORBIDDEN)
@@ -1098,7 +1106,7 @@ class ReportAPIView(APIView):
 
     def get(self, request):
         request_type_filter = request.query_params.get("request_type")
-        month_filter = request.query_params.get("month")  # format: YYYY-MM
+        month_filter = request.query_params.get("month")  # format: YYYY-MM    
 
         # Parse the month filter
         month_start = None
@@ -1243,7 +1251,7 @@ class ServiceRequestListView(generics.ListAPIView):
             return ServiceRequest.objects.filter(status='approved')
         return ServiceRequest.objects.none()
 
-class ServiceRequestActionView(APIView):
+class ServiceRequestActionView(SignatureVerificationMixin,APIView):
     permission_classes = [permissions.IsAuthenticated]
    
     def get_next_approver_role(self, current_role):
@@ -1260,6 +1268,9 @@ class ServiceRequestActionView(APIView):
         if action not in ['forward', 'reject', 'approve']:
             return Response({"error": "Invalid action."}, status=status.HTTP_400_BAD_REQUEST)
 
+        # error_response = self.verify_signature(request)
+        # if error_response:
+        #     return error_response
         current_role = request.user.role
 
         if current_role != service_request.current_approver_role:

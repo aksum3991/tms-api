@@ -435,6 +435,32 @@ def send_sms(phone_number: str, message: str):
 import cv2
 import numpy as np
 import tempfile
+from skimage.metrics import structural_similarity as ssim
+
+def preprocess_signature(img):
+    # Binarize
+    _, img_bin = cv2.threshold(img, 128, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)
+    # Find contours
+    contours, _ = cv2.findContours(img_bin, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if not contours:
+        return img_bin  # fallback
+    # Get bounding box of largest contour
+    cnt = max(contours, key=cv2.contourArea)
+    x, y, w, h = cv2.boundingRect(cnt)
+    cropped = img_bin[y:y+h, x:x+w]
+    # Deskew (simple angle correction)
+    coords = np.column_stack(np.where(cropped > 0))
+    angle = cv2.minAreaRect(coords)[-1]
+    if angle < -45:
+        angle = -(90 + angle)
+    else:
+        angle = -angle
+    (h, w) = cropped.shape
+    M = cv2.getRotationMatrix2D((w // 2, h // 2), angle, 1.0)
+    deskewed = cv2.warpAffine(cropped, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+    # Resize to standard size
+    final = cv2.resize(deskewed, (300, 100))
+    return final
 
 def compare_signatures(user_signature_path, uploaded_signature_file, threshold=35):
     # Save uploaded signature temporarily
@@ -446,9 +472,22 @@ def compare_signatures(user_signature_path, uploaded_signature_file, threshold=3
     # Read images in grayscale
     img1 = cv2.imread(user_signature_path, 0)
     img2 = cv2.imread(temp_signature_path, 0)
-    img1 = cv2.resize(img1, (300, 100))
-    img2 = cv2.resize(img2, (300, 100))
-    result = cv2.matchTemplate(img1, img2, cv2.TM_CCOEFF_NORMED)
-    similarity = result.max() * 100  # Convert to percentage
+
+    img1 = preprocess_signature(img1)
+    img2 = preprocess_signature(img2)
+
+    # SSIM comparison
+    score, _ = ssim(img1, img2, full=True)
+    similarity = score * 100  # Convert to percentage
+
+    # --- Optional: Feature-based (ORB) matching ---
+    orb = cv2.ORB_create()
+    kp1, des1 = orb.detectAndCompute(img1, None)
+    kp2, des2 = orb.detectAndCompute(img2, None)
+    bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+    matches = bf.match(des1, des2)
+    matches = sorted(matches, key=lambda x: x.distance)
+    feature_similarity = len(matches) / max(len(kp1), len(kp2)) * 100 if kp1 and kp2 else 0
+    similarity = (similarity + feature_similarity) / 2  # Combine scores if you want
 
     return similarity, similarity >= threshold

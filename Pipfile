@@ -18,6 +18,11 @@ daphne = "*"
 django-cors-headers = "*"
 requests = "*"
 opencv-python = "*"
+pillow = "*"
+scikit-image = "*"
+torch = "*"
+torchvision = "*"
+scipy = "*"
 
 [dev-packages]
 

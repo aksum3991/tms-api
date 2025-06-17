@@ -1,5 +1,6 @@
 from django.urls import path
 
+from core.reportviews import DashboardOverviewAPIView, MonthlyRequestTrendsAPIView, RecentVehicleRequestsAPIView, RequestTypeDistributionAPIView
 from core.views import (
     AssignVehicleAfterBudgetApprovalView,
     HighCostTransportEstimateView,
@@ -67,4 +68,11 @@ urlpatterns_service=[
     path('serviced-vehicles/', ServicedVehiclesListView.as_view(), name='serviced-vehicles-list'),
     path('<int:vehicle_id>/mark-available/', MarkServicedVehicleAvailableView.as_view(), name='mark-vehicle-available'),
     path('<int:pk>/',ServiceRequestDetailView.as_view(),name="service-request-detail"),
+]
+
+urlpatterns_dashboard = [
+    path('recent-vehicles/', RecentVehicleRequestsAPIView.as_view(), name='dashboard-recent-vehicles'),
+    path('overview/', DashboardOverviewAPIView.as_view(), name='dashboard-overview'),
+    path('monthly-trends/', MonthlyRequestTrendsAPIView.as_view(), name='dashboard-monthly-trends'),
+    path('type-distribution/', RequestTypeDistributionAPIView.as_view(), name='dashboard-type-distribution'),
 ]

@@ -6,6 +6,7 @@ from core.urls2 import urlpatterns as maintenance_urls
 from core.urls2 import urlpatterns_refueling as refueling_urls
 from core.urls2 import urlpatterns_highcost as highcost_urls
 from core.urls2 import urlpatterns_service as service_urls
+from core.urls2 import urlpatterns_dashboard as dashboard_urls
 from django.conf import settings
 from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
@@ -31,5 +32,6 @@ urlpatterns = [
     path("action-logs/<int:pk>/", UserActionLogDetailView.as_view(), name="user-action-log-detail"),
     path('report/', ReportAPIView.as_view(), name='report-api'),
     path("service-requests/", include(service_urls)),
+    path("dashboard/",include(dashboard_urls)),
     path("",include(router.urls))
 ]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
