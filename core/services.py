@@ -1,15 +1,21 @@
 import os
-from django.utils.translation import gettext as _
-from django.utils import timezone
+import tempfile
 from datetime import timedelta
 
+import cv2
+import numpy as np
+import requests
 import urllib
 from django.conf import settings
-import requests
-from auth_app.models import User
 from django.contrib.contenttypes.models import ContentType
+from django.utils import timezone
+from django.utils.translation import gettext as _
+from skimage.metrics import structural_similarity as ssim
+
+from auth_app.models import User
 from .models import ActionLog, HighCostTransportRequest, RefuelingRequest, Vehicle
 from core.models import MaintenanceRequest, TransportRequest, Notification
+
 import logging
 logger = logging.getLogger(__name__)
 
@@ -143,11 +149,8 @@ class NotificationService:
         template = cls.NOTIFICATION_TEMPLATES.get(notification_type)
         if not template:
             raise ValueError(f"Invalid notification type: {notification_type}")
-        print(kwargs)
         passengers = list(transport_request.employees.all())
-        print("Passengers: ", passengers)
         passengers_str = ", ".join([p.full_name for p in passengers]) if passengers else "No additional passengers"       
-        print(type(passengers_str))
         message_kwargs = {
         'request_id': transport_request.id,
         'requester': transport_request.requester.full_name,
@@ -160,7 +163,6 @@ class NotificationService:
         **kwargs
         }
        
-        print("Notification message kwargs:", message_kwargs)
         notification = Notification.objects.create(
             recipient=recipient,
             transport_request=transport_request,
@@ -432,10 +434,6 @@ def send_sms(phone_number: str, message: str):
         logger.error(f"SMS failed for {phone_number}: {e}")
         raise e
 
-import cv2
-import numpy as np
-import tempfile
-from skimage.metrics import structural_similarity as ssim
 
 def preprocess_signature(img):
     # Binarize
@@ -463,15 +461,11 @@ def preprocess_signature(img):
     return final
 
 def compare_signatures(user_signature_path, uploaded_signature_file, threshold=35):
-    # Save uploaded signature temporarily
-    with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as temp_file:
-        for chunk in uploaded_signature_file.chunks():
-            temp_file.write(chunk)
-        temp_signature_path = temp_file.name
+   
 
     # Read images in grayscale
     img1 = cv2.imread(user_signature_path, 0)
-    img2 = cv2.imread(temp_signature_path, 0)
+    img2 = cv2.imread(uploaded_signature_file, 0)
 
     img1 = preprocess_signature(img1)
     img2 = preprocess_signature(img2)
@@ -490,4 +484,4 @@ def compare_signatures(user_signature_path, uploaded_signature_file, threshold=3
     feature_similarity = len(matches) / max(len(kp1), len(kp2)) * 100 if kp1 and kp2 else 0
     similarity = (similarity + feature_similarity) / 2  # Combine scores if you want
 
-    return similarity, similarity >= threshold
+    return similarity, similarity >= threshold 
