@@ -68,6 +68,14 @@ class VehicleSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("This driver is already assigned to another vehicle.")
         
         return value
+    
+    def validate(self, data):
+        # Check for rental company if source is rented
+        source = data.get('source', getattr(self.instance, 'source', None))
+        rental_company = data.get('rental_company', getattr(self.instance, 'rental_company', None))
+        if source == Vehicle.RENTED and not rental_company:
+            raise serializers.ValidationError({"rental_company": "Rental company is required for rented vehicles."})
+        return data
 
 class AssignedVehicleSerializer(serializers.ModelSerializer):
     driver_name = serializers.CharField(source="driver.full_name", read_only=True)
