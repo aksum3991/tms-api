@@ -250,33 +250,13 @@ class HighCostTransportRequestDetailSerializer(serializers.ModelSerializer):
 
 class MonthlyKilometerLogSerializer(serializers.ModelSerializer):
     kilometers_driven = serializers.IntegerField(min_value=1)
-    month = serializers.CharField(max_length=30)
     vehicle = serializers.StringRelatedField(read_only=True)  # optional: for display
     recorded_by = serializers.StringRelatedField(read_only=True) 
 
     class Meta:
         model = MonthlyKilometerLog
-        fields = ['id','vehicle', 'month', 'kilometers_driven','recorded_by', 'created_at']
+        fields = ['id','vehicle', 'kilometers_driven','recorded_by', 'created_at']
 
-    def validate_month(self, value):
-        if not value.strip():
-            raise serializers.ValidationError("Month cannot be blank.")
-        try:
-            
-            datetime.strptime(value, "%B %Y")
-        except ValueError:
-            raise serializers.ValidationError("Month must be in 'Month YYYY' format (e.g., 'April 2025').")
-        
-        return value
-
-    def validate(self, attrs):
-        vehicle_id = self.context.get('view').kwargs.get('vehicle_id')
-        month = attrs.get('month')
-
-        if MonthlyKilometerLog.objects.filter(vehicle_id=vehicle_id, month=month).exists():
-            raise serializers.ValidationError(f"Kilometers for {month} already recorded for this vehicle.")
-
-        return attrs
    
 
 class ActionLogListSerializer(serializers.ModelSerializer):

@@ -21,6 +21,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError  
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.pagination import PageNumberPagination
+from django.utils import timezone
 
 import logging
 
@@ -1125,8 +1126,14 @@ class AddMonthlyKilometersView(generics.CreateAPIView):
         vehicle = get_object_or_404(Vehicle, id=vehicle_id)
 
         kilometers = serializer.validated_data['kilometers_driven']
-        month = serializer.validated_data['month']
-
+        now = timezone.now()
+        month = now.strftime('%Y-%m')
+        month_display = now.strftime('%B %Y')
+        # Validation: Prevent duplicate entry for the same vehicle and month
+        if MonthlyKilometerLog.objects.filter(vehicle=vehicle, month=month).exists():
+            raise serializers.ValidationError(
+                f"Kilometers for {month_display} already recorded for this vehicle."
+            )
         # Save the log
         MonthlyKilometerLog.objects.create(
             vehicle=vehicle,
