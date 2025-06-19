@@ -818,7 +818,15 @@ class MaintenanceRequestActionView(SignatureVerificationMixin,APIView):
                 NotificationService.send_maintenance_notification(
                     'maintenance_forwarded', maintenance_request, approver
                 )
-
+                if approver.phone_number:
+                    sms_message = (
+                        f"Maintenance request for vehicle with license plate: {maintenance_request.requesters_car.license_plate} "
+                        f"has been forwarded for your approval."
+                    )
+                    try:
+                        send_sms(approver.phone_number, sms_message)
+                    except Exception as e:
+                        logger.error(f"Failed to send SMS to {approver.full_name}: {e}")
             return Response({"message": "Request forwarded successfully."}, status=status.HTTP_200_OK)
 
         # ===== REJECT LOGIC =====
@@ -836,7 +844,15 @@ class MaintenanceRequestActionView(SignatureVerificationMixin,APIView):
                 'maintenance_rejected', maintenance_request, maintenance_request.requester,
                 rejector=request.user.full_name, rejection_reason=rejection_message
             )
-
+            if maintenance_request.requester.phone_number:
+                sms_message = (
+                    f"Your maintenance request for vehicle {maintenance_request.requesters_car.license_plate} "
+                    f"was rejected by {request.user.full_name}. Reason: {rejection_message}"
+                )
+                try:
+                    send_sms(maintenance_request.requester.phone_number, sms_message)
+                except Exception as e:
+                    logger.error(f"Failed to send SMS to {maintenance_request.requester.full_name}: {e}")
             return Response({"message": "Request rejected successfully."}, status=status.HTTP_200_OK)
 
         # ===== APPROVE LOGIC =====
@@ -858,6 +874,17 @@ class MaintenanceRequestActionView(SignatureVerificationMixin,APIView):
                     NotificationService.send_maintenance_notification(
                         'maintenance_approved', maintenance_request, recipient=fm
                     )
+                recipients = [maintenance_request.requester] + list(finance_managers)
+                for user in recipients:
+                    if user and user.phone_number:
+                        sms_message = (
+                            f"Maintenance request for vehicle with license plate: {maintenance_request.requesters_car.license_plate} "
+                            f"has been approved by {request.user.full_name}."
+                        )
+                        try:
+                            send_sms(user.phone_number, sms_message)
+                        except Exception as e:
+                            logger.error(f"Failed to send SMS to {user.full_name}: {e}")
 
                 return Response({"message": "Request approved successfully and finance notified."}, status=status.HTTP_200_OK)
 

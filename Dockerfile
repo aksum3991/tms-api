@@ -17,6 +17,7 @@ RUN apt-get update && apt-get install -y \
     python3-dev \
     gcc \
     libgl1 \
+    libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 # Install pipenv (only if your project uses Pipenv)
