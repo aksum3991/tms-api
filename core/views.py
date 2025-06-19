@@ -968,6 +968,15 @@ class TransportRequestActionView(SignatureVerificationMixin,APIView):
             next_approvers = User.objects.filter(role=next_role, is_active=True)
             for approver in next_approvers:
                 NotificationService.create_notification('forwarded', transport_request, approver)
+                if approver.phone_number:
+                    sms_message = (
+                        f"Transport request by requester {transport_request.requester.full_name} to {transport_request.destination} has been forwarded for your approval."
+                    )
+                    try:
+                        send_sms(approver.phone_number, sms_message)
+                    except Exception as e:
+                        logger.error(f"Failed to send SMS to {approver.full_name}: {e}")
+
             # log_action(request_obj=transport_request,user=request.user,action="forwarded",remarks=request.data.get("remarks"))
 
         elif action == 'reject':
@@ -978,6 +987,14 @@ class TransportRequestActionView(SignatureVerificationMixin,APIView):
             NotificationService.create_notification(
                 'rejected', transport_request, transport_request.requester, rejector=request.user.full_name
             )
+            if transport_request.requester.phone_number:
+                sms_message = (
+                    f"Your transport request by requester {transport_request.requester.full_name} to {transport_request.destination} was rejected by {request.user.full_name}."
+                )
+                try:
+                    send_sms(transport_request.requester.phone_number, sms_message)
+                except Exception as e:
+                    logger.error(f"Failed to send SMS to {transport_request.requester.full_name}: {e}")
             log_action(request_obj=transport_request,user=request.user,action="rejected",remarks=transport_request.rejection_message)
 
         elif action == 'approve' and current_role == User.TRANSPORT_MANAGER:
@@ -1017,25 +1034,25 @@ class TransportRequestActionView(SignatureVerificationMixin,APIView):
                     transport_request.employees.exclude(id=transport_request.requester_id)
                     .values_list('full_name', flat=True)
                 )
+                group_info = " With Employees: " + ", ".join(employee_names) + "." if employee_names else ""
 
-                # Format the names into a string
-                if employee_names:
-                    group_info = " With Employees: " + ", ".join(employee_names) + "."
-                else:
-                    group_info = ""
-
-                # Construct the message
-                message = (
+                # Message for driver
+                driver_message = (
                     f"You are assigned for a transport request to {transport_request.destination} on "
                     f"{transport_request.start_day.strftime('%Y-%m-%d')} at {transport_request.start_time.strftime('%H:%M')} "
                     f"with vehicle {vehicle.model} ({vehicle.license_plate}).{group_info}"
                 )
+                send_sms(vehicle.driver.phone_number, driver_message)
 
-                send_sms(vehicle.driver.phone_number, message)
-
+                # Message for requester
+                requester_message = (
+                    f"Your transport request to {transport_request.destination} has been approved by {request.user.full_name}. "
+                    f"You can now communicate with the assigned driver: {vehicle.driver.full_name}, Phone: {vehicle.driver.phone_number}."
+                )
+                if transport_request.requester.phone_number:
+                    send_sms(transport_request.requester.phone_number, requester_message)
             except Exception as sms_error:
-                logger.error(f"Failed to send SMS to driver {vehicle.driver.full_name}: {sms_error}")
-
+                logger.error(f"Failed to send SMS: {sms_error}")
         transport_request.save()
         return Response({"message": f"Request {action}ed successfully."}, status=status.HTTP_200_OK)
 
@@ -1069,12 +1086,20 @@ class TripCompletionView(APIView):
         # # Notify transport manager
         transport_manager = User.objects.filter(role=User.TRANSPORT_MANAGER).first()
         if transport_manager:
-           NotificationService.send_trip_completion_notification(
+            NotificationService.send_trip_completion_notification(
                 transport_request=trip_request,
                 recipient=transport_manager,
                 completer=request.user.full_name
             )
-
+            if transport_manager.phone_number:
+                sms_message = (
+                    f"Trip to {trip_request.destination} with vehicle {trip_request.vehicle.model} ({trip_request.vehicle.license_plate}) "
+                    f"has been completed by {request.user.full_name}."
+                )
+                try:
+                    send_sms(transport_manager.phone_number, sms_message)
+                except Exception as e:
+                    logger.error(f"Failed to send SMS to {transport_manager.full_name}: {e}")
         return Response({"message": "Trip successfully marked as completed."}, status=200)
 
 class NotificationListView(APIView):
