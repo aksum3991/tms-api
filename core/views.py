@@ -159,6 +159,31 @@ class HighCostTransportRequestActionView(SignatureVerificationMixin,APIView):
                     highcost_request,
                     approver
                 )
+                employee_names = list(
+                    highcost_request.employees.exclude(id=highcost_request.requester_id)
+                    .values_list('full_name', flat=True)
+                )
+
+                # Format the names into a string
+                if employee_names:
+                    group_info = " With Employees: " + ", ".join(employee_names) + "."
+                else:
+                    group_info = ""
+
+                # Construct the message
+                # message = (
+                #     f"You are assigned for a transport request to {highcost_request.destination} on "
+                #     f"{highcost_request.start_day.strftime('%Y-%m-%d')} at {highcost_request.start_time.strftime('%H:%M')} "
+                #     f"with vehicle {vehicle.model} ({vehicle.license_plate}).{group_info}"
+                # )
+                if approver.phone_number:
+                    sms_message = (
+                        f"High-cost transport request {highcost_request.destination} has been forwarded for your approval. here is the list of employees: {group_info}."
+                    )
+                    try:
+                        send_sms(approver.phone_number, sms_message)
+                    except Exception as e:
+                        logger.error(f"Failed to send SMS to {approver.full_name}: {e}")
 
         # ========== REJECT ==========
         elif action == 'reject':
@@ -179,7 +204,15 @@ class HighCostTransportRequestActionView(SignatureVerificationMixin,APIView):
                 rejector=request.user.full_name,
                 rejection_reason=rejection_message
             )
-
+            if highcost_request.requester.phone_number:
+                sms_message = (
+                    f"Your high-cost transport request {highcost_request.destination} was rejected by {request.user.full_name}. "
+                    f"Reason: {rejection_message}"
+                )
+                try:
+                    send_sms(highcost_request.requester.phone_number, sms_message)
+                except Exception as e:
+                    logger.error(f"Failed to send SMS to {highcost_request.requester.full_name}: {e}")
         # ========== APPROVE (BUDGET_MANAGER) ==========
         elif action == 'approve':
             if current_role == User.BUDGET_MANAGER and highcost_request.current_approver_role == User.BUDGET_MANAGER:
@@ -188,6 +221,8 @@ class HighCostTransportRequestActionView(SignatureVerificationMixin,APIView):
                 log_action(request_obj=highcost_request,user=request.user,action="approved",remarks=request.data.get("remarks"))
 
                 approver = request.user.full_name
+                finance_manager = User.objects.get(role=User.FINANCE_MANAGER)
+                transport_manager = User.objects.get(role=User.TRANSPORT_MANAGER)
                 # Notify the requester and stakeholders
                 NotificationService.send_highcost_notification(
                     'highcost_approved',
@@ -198,15 +233,25 @@ class HighCostTransportRequestActionView(SignatureVerificationMixin,APIView):
                 NotificationService.send_highcost_notification(
                     'highcost_approved',
                     highcost_request,
-                    User.objects.get(role=User.FINANCE_MANAGER),
+                    finance_manager,
                     approver=approver
                 )
                 NotificationService.send_highcost_notification(
                     'highcost_approved',
                     highcost_request,
-                    User.objects.get(role=User.TRANSPORT_MANAGER),
+                    transport_manager,
                     approver=approver
                 )
+
+                for user in [highcost_request.requester, finance_manager, transport_manager]:
+                    if user.phone_number:
+                        sms_message = (
+                            f"High-cost transport request {highcost_request.destination} has been approved by {approver}."
+                        )
+                        try:
+                            send_sms(user.phone_number, sms_message)
+                        except Exception as e:
+                            logger.error(f"Failed to send SMS to {user.full_name}: {e}")
             else:
                 return Response({"error": "Approval not allowed at this stage."}, status=403)
 
@@ -315,11 +360,21 @@ class AssignVehicleAfterBudgetApprovalView(APIView):
             date=highcost_request.start_day.strftime('%Y-%m-%d'),
             start_time=highcost_request.start_time.strftime('%H:%M')
         )
+        employee_names = list(
+                    highcost_request.employees.exclude(id=highcost_request.requester_id)
+                    .values_list('full_name', flat=True)
+                )
+
+                # Format the names into a string
+        if employee_names:
+            group_info = " With Employees: " + ", ".join(employee_names) + "."
+        else:
+            group_info = ""
         try:
             message = (
                 f"You are assigned for transport request to {highcost_request.destination} on "
                 f"{highcost_request.start_day.strftime('%Y-%m-%d')} at {highcost_request.start_time.strftime('%H:%M')} "
-                f"with vehicle {vehicle.model} ({vehicle.license_plate})."
+                f"with vehicle {vehicle.model} ({vehicle.license_plate}).{group_info}"
             )
             send_sms(vehicle.driver.phone_number, message)
         except Exception as sms_error:
@@ -906,30 +961,30 @@ class TransportRequestActionView(SignatureVerificationMixin,APIView):
             transport_request.status = 'approved'
             vehicle.mark_as_in_use()
             log_action(request_obj=transport_request,user=request.user,action="approved",remarks=f"Vehicle: {vehicle.license_plate}")
-            # try:
-            #     # Get employee full names
-            #     employee_names = list(
-            #         transport_request.employees.exclude(id=transport_request.requester_id)
-            #         .values_list('full_name', flat=True)
-            #     )
+            try:
+                # Get employee full names
+                employee_names = list(
+                    transport_request.employees.exclude(id=transport_request.requester_id)
+                    .values_list('full_name', flat=True)
+                )
 
-            #     # Format the names into a string
-            #     if employee_names:
-            #         group_info = " With Employees: " + ", ".join(employee_names) + "."
-            #     else:
-            #         group_info = ""
+                # Format the names into a string
+                if employee_names:
+                    group_info = " With Employees: " + ", ".join(employee_names) + "."
+                else:
+                    group_info = ""
 
-            #     # Construct the message
-            #     message = (
-            #         f"You are assigned for a transport request to {transport_request.destination} on "
-            #         f"{transport_request.start_day.strftime('%Y-%m-%d')} at {transport_request.start_time.strftime('%H:%M')} "
-            #         f"with vehicle {vehicle.model} ({vehicle.license_plate}).{group_info}"
-            #     )
+                # Construct the message
+                message = (
+                    f"You are assigned for a transport request to {transport_request.destination} on "
+                    f"{transport_request.start_day.strftime('%Y-%m-%d')} at {transport_request.start_time.strftime('%H:%M')} "
+                    f"with vehicle {vehicle.model} ({vehicle.license_plate}).{group_info}"
+                )
 
-            #     send_sms(vehicle.driver.phone_number, message)
+                send_sms(vehicle.driver.phone_number, message)
 
-            # except Exception as sms_error:
-            #     logger.error(f"Failed to send SMS to driver {vehicle.driver.full_name}: {sms_error}")
+            except Exception as sms_error:
+                logger.error(f"Failed to send SMS to driver {vehicle.driver.full_name}: {sms_error}")
 
         transport_request.save()
         return Response({"message": f"Request {action}ed successfully."}, status=status.HTTP_200_OK)
