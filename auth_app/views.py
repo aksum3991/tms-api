@@ -35,52 +35,24 @@ class UserRegistrationView(APIView):
 class UserDetailView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def get(self, request, user_id=None):
-        if user_id is None:
-            user=request.user
-        else:
-            if request.user.id != user_id:
-                return Response({"error": "You are not authorized to view this user's details."}, status=status.HTTP_403_FORBIDDEN)
-        
-            try:
-                user = User.objects.get(id=user_id)
-            except User.DoesNotExist:
-                return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
-        serializer = UserDetailSerializer(user)
+    def get(self, request):
+        serializer = UserDetailSerializer(request.user)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    def delete(self, request, user_id):
-        if request.user.id != user_id:
-            return Response({"error": "You are not authorized to delete this user."}, status=status.HTTP_403_FORBIDDEN)
-        
-        try:
-            user = User.objects.get(id=user_id)
-            user.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        except User.DoesNotExist:
-            return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+    def delete(self, request):
+        user = request.user
+        user.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
-    def put(self, request, user_id):
-        if user_id  is None:
-            user=request.user
-        else:
-            if request.user.id != user_id:
-                return Response({"error": "You are not authorized to update this user."}, status=status.HTTP_403_FORBIDDEN)
-
-            try:
-                user = User.objects.get(id=user_id)
-
-                if "email" in request.data and request.data['email']!=user.email:
-                    return Response({"error": "Email cannot be updated."}, status=status.HTTP_400_BAD_REQUEST)
-          
-            except User.DoesNotExist:
-                return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+    def put(self, request):
+        user = request.user
+        if "email" in request.data and request.data['email'] != user.email:
+            return Response({"error": "Email cannot be updated."}, status=status.HTTP_400_BAD_REQUEST)
         serializer = UserDetailSerializer(user, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 
 class AdminApprovalView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsSystemAdmin]
