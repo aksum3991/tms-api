@@ -467,6 +467,11 @@ def compare_signatures(user_signature_path, uploaded_signature_file, threshold=3
     img1 = cv2.imread(user_signature_path, 0)
     img2 = cv2.imread(uploaded_signature_file, 0)
 
+    # Add these checks:
+    if img1 is None:
+        raise ValueError(f"Failed to load stored signature image from {user_signature_path}")
+    if img2 is None:
+        raise ValueError(f"Failed to load uploaded signature image from {uploaded_signature_file}")
     img1 = preprocess_signature(img1)
     img2 = preprocess_signature(img2)
 

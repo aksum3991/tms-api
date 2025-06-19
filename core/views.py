@@ -170,12 +170,7 @@ class HighCostTransportRequestActionView(SignatureVerificationMixin,APIView):
                 else:
                     group_info = ""
 
-                # Construct the message
-                # message = (
-                #     f"You are assigned for a transport request to {highcost_request.destination} on "
-                #     f"{highcost_request.start_day.strftime('%Y-%m-%d')} at {highcost_request.start_time.strftime('%H:%M')} "
-                #     f"with vehicle {vehicle.model} ({vehicle.license_plate}).{group_info}"
-                # )
+                
                 if approver.phone_number:
                     sms_message = (
                         f"High-cost transport request {highcost_request.destination} has been forwarded for your approval. here is the list of employees: {group_info}."
@@ -637,6 +632,16 @@ class RefuelingRequestActionView(SignatureVerificationMixin,APIView):
                     refueling_request=refueling_request,
                     recipient=approver
                 )
+                if approver.phone_number:
+                    sms_message = (
+                        f"Refueling request for vehicle with license plate: {refueling_request.requesters_car.license_plate} "
+                        f"has been forwarded for your approval."
+                    )
+                    try:
+                        send_sms(approver.phone_number, sms_message)
+                    except Exception as e:
+                        logger.error(f"Failed to send SMS to {approver.full_name}: {e}")
+
             refueling_request.save()
             log_action(request_obj=refueling_request,user=request.user,action="forwarded",remarks=request.data.get('remarks'))
 
@@ -657,6 +662,15 @@ class RefuelingRequestActionView(SignatureVerificationMixin,APIView):
                 'refueling_rejected', refueling_request, refueling_request.requester,
                 rejector=request.user.full_name, rejection_reason=rejection_message
                 )
+            if refueling_request.requester.phone_number:
+                sms_message = (
+                    f"Your refueling request for {refueling_request.requesters_car.license_plate} "
+                    f"was rejected by {request.user.full_name}. Reason: {rejection_message}"
+                )
+                try:
+                    send_sms(refueling_request.requester.phone_number, sms_message)
+                except Exception as e:
+                    logger.error(f"Failed to send SMS to {refueling_request.requester.full_name}: {e}")
         # ====== APPROVE ACTION ======
         elif action == 'approve':
             if current_role == User.BUDGET_MANAGER and refueling_request.current_approver_role == User.BUDGET_MANAGER:
@@ -674,6 +688,16 @@ class RefuelingRequestActionView(SignatureVerificationMixin,APIView):
                 NotificationService.send_refueling_notification(
                    'refueling_approved',refueling_request, finance_manger,approver=request.user.full_name
                 )
+                for user in [refueling_request.requester, finance_manger]:
+                    if user and user.phone_number:
+                        sms_message = (
+                            f"Refueling request for vehicle with license plate: {refueling_request.requesters_car.license_plate} "
+                            f"has been approved by {request.user.full_name}."
+                        )
+                        try:
+                            send_sms(user.phone_number, sms_message)
+                        except Exception as e:
+                            logger.error(f"Failed to send SMS to {user.full_name}: {e}")
             else:
                 return Response({"error": f"{request.user.get_role_display()} cannot approve this request at this stage."}, 
                                 status=status.HTTP_403_FORBIDDEN)
