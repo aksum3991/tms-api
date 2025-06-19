@@ -927,9 +927,7 @@ class TransportRequestActionView(SignatureVerificationMixin,APIView):
         if current_role != transport_request.current_approver_role:
             return Response({"error": "You are not authorized to act on this request."}, status=status.HTTP_403_FORBIDDEN)
         
-        error_response = self.verify_signature(request)
-        if error_response:
-            return error_response
+     
         if action == 'forward':
             next_role = self.get_next_approver_role(current_role)
             if not next_role:
