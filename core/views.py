@@ -151,7 +151,7 @@ class HighCostTransportRequestActionView(SignatureVerificationMixin,APIView):
             highcost_request.status = 'forwarded'
             highcost_request.current_approver_role = next_role
             highcost_request.save()
-            log_action(request_obj=highcost_request,user=request.user,action="forwarded",remarks=request.data.get("remarks"))
+            # log_action(request_obj=highcost_request,user=request.user,action="forwarded",remarks=request.data.get("remarks"))
 
             next_approvers =User.objects.filter(role=next_role, is_active=True) 
             for approver in next_approvers:
@@ -810,7 +810,7 @@ class MaintenanceRequestActionView(SignatureVerificationMixin,APIView):
             maintenance_request.status = 'forwarded'
             maintenance_request.current_approver_role = next_role
             maintenance_request.save()
-            log_action(request_obj=maintenance_request,user=request.user,action="forwarded",remarks=request.data.get("remarks"))
+            # log_action(request_obj=maintenance_request,user=request.user,action="forwarded",remarks=request.data.get("remarks"))
 
             # Notify next approver(s)
             next_approvers = User.objects.filter(role=next_role, is_active=True)
@@ -968,7 +968,7 @@ class TransportRequestActionView(SignatureVerificationMixin,APIView):
             next_approvers = User.objects.filter(role=next_role, is_active=True)
             for approver in next_approvers:
                 NotificationService.create_notification('forwarded', transport_request, approver)
-            log_action(request_obj=transport_request,user=request.user,action="forwarded",remarks=request.data.get("remarks"))
+            # log_action(request_obj=transport_request,user=request.user,action="forwarded",remarks=request.data.get("remarks"))
 
         elif action == 'reject':
             transport_request.status = 'rejected'
@@ -1410,8 +1410,19 @@ class ServiceRequestActionView(SignatureVerificationMixin,APIView):
             service_request.status = 'forwarded'
             service_request.current_approver_role = next_role
             service_request.save()
-            log_action(request_obj=service_request, user=request.user, action="forwarded", remarks=request.data.get("remarks"))
-
+            # log_action(request_obj=service_request, user=request.user, action="forwarded", remarks=request.data.get("remarks"))
+            next_approvers = User.objects.filter(role=next_role, is_active=True)
+            for approver in next_approvers:
+                # NotificationService.send_service_notification('service_forwarded', service_request, approver)
+                if approver.phone_number:
+                    sms_message = (
+                        f"Service request for vehicle with license plate: {service_request.vehicle.license_plate} "
+                        f"has been forwarded for your approval."
+                    )
+                    try:
+                        send_sms(approver.phone_number, sms_message)
+                    except Exception as e:
+                        logger.error(f"Failed to send SMS to {approver.full_name}: {e}")
             # next_approvers = User.objects.filter(role=next_role, is_active=True)
             # for approver in next_approvers:
             #     NotificationService.send_service_notification('service_forwarded', service_request, approver)
@@ -1427,7 +1438,16 @@ class ServiceRequestActionView(SignatureVerificationMixin,APIView):
             service_request.rejection_reason = rejection_message
             service_request.save()
             log_action(request_obj=service_request, user=request.user, action="rejected", remarks=rejection_message)
-
+            driver = service_request.vehicle.driver
+            if driver and driver.phone_number:
+                sms_message = (
+                    f"Service request for vehicle with license plate: {service_request.vehicle.license_plate} "
+                    f"has been rejected by {request.user.full_name}. Reason: {rejection_message}"
+                )
+                try:
+                    send_sms(driver.phone_number, sms_message)
+                except Exception as e:
+                    logger.error(f"Failed to send SMS to {driver.full_name}: {e}")
             # NotificationService.send_service_notification(
             #     'service_rejected', service_request, service_request.created_by,
             #     rejector=request.user.get_full_name(), rejection_reason=rejection_message
@@ -1440,13 +1460,24 @@ class ServiceRequestActionView(SignatureVerificationMixin,APIView):
                 service_request.status = 'approved'
                 service_request.save()
                 log_action(request_obj=service_request, user=request.user, action="approved", remarks=request.data.get("remarks"))
-
+                finance_managers = User.objects.filter(role=User.FINANCE_MANAGER, is_active=True)
+                driver = service_request.vehicle.driver
+                recipients = [driver] + list(finance_managers)
+                for user in recipients:
+                    if user and user.phone_number:
+                        sms_message = (
+                            f"Service request for vehicle with license plate: {service_request.vehicle.license_plate} "
+                            f"has been approved by {request.user.full_name}."
+                        )
+                        try:
+                            send_sms(user.phone_number, sms_message)
+                        except Exception as e:
+                            logger.error(f"Failed to send SMS to {user.full_name}: {e}")
                 # NotificationService.send_service_notification(
                 #     'service_approved', service_request, service_request.created_by,
                 #     approver=request.user.get_full_name()
                 # )
 
-                finance_managers = User.objects.filter(role=User.FINANCE_MANAGER, is_active=True)
                 # for fm in finance_managers:
                 #     NotificationService.send_service_notification('service_approved', service_request, recipient=fm)
 
