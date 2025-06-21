@@ -12,7 +12,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
 
-from core.views import AddMonthlyKilometersView, AvailableDriversView, AvailableOrganizationVehiclesListView, AvailableVehiclesListView, MyAssignedVehicleView, MyMonthlyKilometerLogsListView, ReportAPIView, UserActionLogDetailView, UserActionLogListView, VehicleViewSet
+from core.views import AddMonthlyKilometersView, AvailableDriversView, AvailableOrganizationVehiclesListView, AvailableVehiclesListView, MyAssignedVehicleView, MyMonthlyKilometerLogsListView, ReportAPIView, RequestOTPView, UserActionLogDetailView, UserActionLogListView, VehicleViewSet
 
 router = DefaultRouter()
 router.register(r'vehicles',VehicleViewSet)
@@ -35,5 +35,6 @@ urlpatterns = [
     path('report/', ReportAPIView.as_view(), name='report-api'),
     path("service-requests/", include(service_urls)),
     path("dashboard/",include(dashboard_urls)),
-    path("",include(router.urls))
+    path("",include(router.urls)),
+    path('otp/request/', RequestOTPView.as_view(), name='request-otp'),
 ]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

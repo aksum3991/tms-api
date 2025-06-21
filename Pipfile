@@ -23,6 +23,8 @@ scikit-image = "*"
 torch = "*"
 torchvision = "*"
 scipy = "*"
+django-redis = "*"
+redis = "*"
 
 [dev-packages]
 

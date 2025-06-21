@@ -7,8 +7,9 @@ from rest_framework.response import Response
 from auth_app.permissions import IsDepartmentManager, IsTransportManager
 from auth_app.serializers import UserDetailSerializer
 from core import serializers
-from core.mixins import SignatureVerificationMixin
+from core.mixins import OTPVerificationMixin, SignatureVerificationMixin
 from core.models import ActionLog, HighCostTransportRequest, MaintenanceRequest, MonthlyKilometerLog, RefuelingRequest, ServiceRequest, TransportRequest, Vehicle, Notification
+from core.otp_manager import OTPManager
 from core.permissions import IsAllowedVehicleUser
 from core.serializers import ActionLogListSerializer, AssignedVehicleSerializer, HighCostTransportRequestDetailSerializer, HighCostTransportRequestSerializer, MaintenanceRequestSerializer, MonthlyKilometerLogSerializer, RefuelingRequestDetailSerializer, RefuelingRequestSerializer, ReportFilterSerializer, ServiceRequestDetailSerializer, ServiceRequestSerializer, TransportRequestSerializer, NotificationSerializer, VehicleSerializer
 from core.services import NotificationService, RefuelingEstimator, compare_signatures, log_action, send_sms
@@ -113,7 +114,7 @@ class HighCostTransportRequestListView(generics.ListAPIView):
             return HighCostTransportRequest.objects.filter(vehicle__driver=user,status='approved')  # Optional: restrict to approved requests only
         return HighCostTransportRequest.objects.filter(requester=user)
 
-class HighCostTransportRequestActionView(SignatureVerificationMixin,APIView): 
+class HighCostTransportRequestActionView(SignatureVerificationMixin,OTPVerificationMixin,APIView): 
     permission_classes = [permissions.IsAuthenticated]
 
     def get_next_approver_role(self, current_role):
@@ -134,9 +135,14 @@ class HighCostTransportRequestActionView(SignatureVerificationMixin,APIView):
 
         if action not in ['forward', 'reject', 'approve']:
             return Response({"error": "Invalid action."}, status=400)
-        error_response = self.verify_signature(request)
-        if error_response:
-            return error_response
+        
+        otp_code = request.data.get("otp_code")
+        otp_error = self.verify_otp(request.user, otp_code, request)
+        if otp_error:
+            return otp_error
+        # error_response = self.verify_signature(request)
+        # if error_response:
+        #     return error_response
         # ========== FORWARD ==========
         if action == 'forward':
             if current_role == User.TRANSPORT_MANAGER:
@@ -607,9 +613,13 @@ class RefuelingRequestActionView(SignatureVerificationMixin,APIView):
         current_role = request.user.role
         if current_role != refueling_request.current_approver_role:
             return Response({"error": "You are not authorized to act on this request."}, status=status.HTTP_403_FORBIDDEN)
-        error_response = self.verify_signature(request)
-        if error_response:
-            return error_response
+        # error_response = self.verify_signature(request)
+        # if error_response:
+        #     return error_response
+        otp_code = request.data.get("otp_code")
+        otp_error = self.verify_otp(request.user, otp_code, request)
+        if otp_error:
+            return otp_error
         # ====== FORWARD ACTION ======
         if action == 'forward':
             if current_role == User.TRANSPORT_MANAGER:
@@ -780,9 +790,13 @@ class MaintenanceRequestActionView(SignatureVerificationMixin,APIView):
 
         if current_role != maintenance_request.current_approver_role:
             return Response({"error": "You are not authorized to act on this request."}, status=status.HTTP_403_FORBIDDEN)
-        error_response = self.verify_signature(request)
-        if error_response:
-            return error_response
+        # error_response = self.verify_signature(request)
+        # if error_response:
+        #     return error_response
+        otp_code = request.data.get("otp_code")
+        otp_error = self.verify_otp(request.user, otp_code, request)
+        if otp_error:
+            return otp_error
         # ===== FORWARD LOGIC =====
         if action == 'forward':
             # General System MUST submit files and cost before forwarding
@@ -930,7 +944,7 @@ class MaintenanceFileSubmissionView(APIView):
         return Response({"message": "Maintenance files and cost submitted successfully."}, status=status.HTTP_200_OK)
 
 
-class TransportRequestActionView(SignatureVerificationMixin,APIView):
+class TransportRequestActionView(SignatureVerificationMixin,OTPVerificationMixin,APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_next_approver_role(self, current_role):
@@ -955,7 +969,6 @@ class TransportRequestActionView(SignatureVerificationMixin,APIView):
         if current_role != transport_request.current_approver_role:
             return Response({"error": "You are not authorized to act on this request."}, status=status.HTTP_403_FORBIDDEN)
         
-     
         if action == 'forward':
             next_role = self.get_next_approver_role(current_role)
             if not next_role:
@@ -1409,9 +1422,13 @@ class ServiceRequestActionView(SignatureVerificationMixin,APIView):
 
         if current_role != service_request.current_approver_role:
             return Response({"error": "You are not authorized to act on this request."}, status=status.HTTP_403_FORBIDDEN)
-        error_response = self.verify_signature(request)
-        if error_response:
-            return error_response
+        # error_response = self.verify_signature(request)
+        # if error_response:
+        #     return error_response
+        otp_code = request.data.get("otp_code")
+        otp_error = self.verify_otp(request.user, otp_code, request)
+        if otp_error:
+            return otp_error
         if action == 'forward':
             if current_role == User.GENERAL_SYSTEM:
                 missing = []
@@ -1635,3 +1652,16 @@ class ServiceRequestDetailView(RetrieveAPIView):
 
         serializer = self.get_serializer(service_request)
         return Response(serializer.data)
+    
+class RequestOTPView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        if not user.phone_number:
+            return Response({"error": "User does not have a phone number."}, status=400)
+        try:
+            OTPManager.generate_otp(user)
+        except PermissionError as e:
+            return Response({"error": str(e)}, status=429)
+        return Response({"message": "OTP sent to your phone."}, status=200)
