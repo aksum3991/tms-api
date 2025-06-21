@@ -3,6 +3,8 @@ from django.urls import path
 from core.reportviews import DashboardOverviewAPIView, MonthlyRequestTrendsAPIView, RecentVehicleRequestsAPIView, RequestTypeDistributionAPIView
 from core.views import (
     AssignVehicleAfterBudgetApprovalView,
+    CouponRequestCreateView,
+    CouponRequestListView,
     HighCostTransportEstimateView,
     HighCostTransportRequestActionView,
     HighCostTransportRequestCreateView,
@@ -75,4 +77,9 @@ urlpatterns_dashboard = [
     path('overview/', DashboardOverviewAPIView.as_view(), name='dashboard-overview'),
     path('monthly-trends/', MonthlyRequestTrendsAPIView.as_view(), name='dashboard-monthly-trends'),
     path('type-distribution/', RequestTypeDistributionAPIView.as_view(), name='dashboard-type-distribution'),
+]
+
+urlpatterns_coupon = [
+    path('create/', CouponRequestCreateView.as_view(), name='coupon-request-create'),
+    path('list/', CouponRequestListView.as_view(), name='coupon-request-list'),
 ]

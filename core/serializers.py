@@ -257,7 +257,49 @@ class MonthlyKilometerLogSerializer(serializers.ModelSerializer):
         model = MonthlyKilometerLog
         fields = ['id','vehicle', 'kilometers_driven','recorded_by', 'created_at']
 
-   
+from rest_framework import serializers
+from core.models import CouponRequest, MonthlyKilometerLog
+from django.utils import timezone
+
+class CouponRequestSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CouponRequest
+        fields = ['id', 'vehicle', 'month', 'requester', 'created_at']
+        read_only_fields = ['vehicle', 'month', 'requester', 'created_at']
+
+    def validate(self, attrs):
+        user = self.context['request'].user
+        allowed_roles = [
+            user.DEPARTMENT_MANAGER, user.FINANCE_MANAGER, user.TRANSPORT_MANAGER,
+            user.CEO, user.DRIVER, user.GENERAL_SYSTEM, user.BUDGET_MANAGER
+        ]
+        if user.role not in allowed_roles:
+            raise serializers.ValidationError("You are not allowed to send a coupon request.")
+
+        # Automatically get the user's assigned vehicle
+        vehicle = getattr(user, 'assigned_vehicle', None)
+        if not vehicle:
+            raise serializers.ValidationError("No vehicle assigned to your account.")
+
+        # Set current month
+        now = timezone.now()
+        month = now.strftime('%Y-%m')
+        month_display = now.strftime('%B %Y')
+
+
+        # Check if kilometer log exists for this vehicle and month
+        if not MonthlyKilometerLog.objects.filter(vehicle=vehicle, month=month).exists():
+            raise serializers.ValidationError(
+                f"Monthly kilometer log for {month_display} not found for your vehicle. Please log kilometers first."
+            )
+
+        attrs['vehicle'] = vehicle
+        attrs['month'] = month
+        attrs['requester'] = user
+        return attrs
+
+    def create(self, validated_data):
+        return CouponRequest.objects.create(**validated_data)   
 
 class ActionLogListSerializer(serializers.ModelSerializer):
     request_type = serializers.CharField(source='content_type.model')

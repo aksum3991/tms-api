@@ -105,6 +105,14 @@ class MonthlyKilometerLog(models.Model):
 
     class Meta:
         unique_together = ('vehicle', 'month')
+class CouponRequest(models.Model):
+    vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE)
+    month = models.CharField(max_length=20)
+    requester = models.ForeignKey(User, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"CouponRequest for {self.vehicle.license_plate} by {self.requester.full_name} ({self.month})"
 
 class TransportRequest(models.Model):
     STATUS_CHOICES = [

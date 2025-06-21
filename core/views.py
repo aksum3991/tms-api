@@ -8,10 +8,10 @@ from auth_app.permissions import IsDepartmentManager, IsTransportManager
 from auth_app.serializers import UserDetailSerializer
 from core import serializers
 from core.mixins import OTPVerificationMixin, SignatureVerificationMixin
-from core.models import ActionLog, HighCostTransportRequest, MaintenanceRequest, MonthlyKilometerLog, RefuelingRequest, ServiceRequest, TransportRequest, Vehicle, Notification
+from core.models import ActionLog, CouponRequest, HighCostTransportRequest, MaintenanceRequest, MonthlyKilometerLog, RefuelingRequest, ServiceRequest, TransportRequest, Vehicle, Notification
 from core.otp_manager import OTPManager
 from core.permissions import IsAllowedVehicleUser
-from core.serializers import ActionLogListSerializer, AssignedVehicleSerializer, HighCostTransportRequestDetailSerializer, HighCostTransportRequestSerializer, MaintenanceRequestSerializer, MonthlyKilometerLogSerializer, RefuelingRequestDetailSerializer, RefuelingRequestSerializer, ReportFilterSerializer, ServiceRequestDetailSerializer, ServiceRequestSerializer, TransportRequestSerializer, NotificationSerializer, VehicleSerializer
+from core.serializers import ActionLogListSerializer, AssignedVehicleSerializer, CouponRequestSerializer, HighCostTransportRequestDetailSerializer, HighCostTransportRequestSerializer, MaintenanceRequestSerializer, MonthlyKilometerLogSerializer, RefuelingRequestDetailSerializer, RefuelingRequestSerializer, ReportFilterSerializer, ServiceRequestDetailSerializer, ServiceRequestSerializer, TransportRequestSerializer, NotificationSerializer, VehicleSerializer
 from core.services import NotificationService, RefuelingEstimator, compare_signatures, log_action, send_sms
 from auth_app.models import User
 from django.db.models import Q, F, OuterRef,Subquery
@@ -1190,6 +1190,9 @@ class AddMonthlyKilometersView(generics.CreateAPIView):
         vehicle_id = self.kwargs.get('vehicle_id')
         vehicle = get_object_or_404(Vehicle, id=vehicle_id)
 
+        if vehicle.driver != self.request.user:
+            raise PermissionDenied("You are not authorized to add kilometers for this vehicle.")    
+
         kilometers = serializer.validated_data['kilometers_driven']
         now = timezone.now()
         month = now.strftime('%Y-%m')
@@ -1226,6 +1229,23 @@ class AddMonthlyKilometersView(generics.CreateAPIView):
                 recipients=recipients
             )
 
+class CouponRequestCreateView(generics.CreateAPIView):
+    serializer_class = CouponRequestSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+class CouponRequestListView(generics.ListAPIView):
+    serializer_class = CouponRequestSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.role == User.TRANSPORT_MANAGER:
+            # Transport manager sees all, newest first
+            return CouponRequest.objects.all().order_by('-created_at')
+        else:
+            # Requester sees only their own
+            return CouponRequest.objects.filter(requester=user).order_by('-created_at')
+    
 class MyMonthlyKilometerLogsListView(generics.ListAPIView):
     serializer_class = MonthlyKilometerLogSerializer
     permission_classes = [permissions.IsAuthenticated]
