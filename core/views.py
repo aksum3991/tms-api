@@ -591,7 +591,7 @@ class RefuelingRequestDetailView(RetrieveAPIView):
         serializer = self.get_serializer(refueling_request)
         return Response(serializer.data)
 
-class RefuelingRequestActionView(SignatureVerificationMixin,APIView):
+class RefuelingRequestActionView(SignatureVerificationMixin,OTPVerificationMixin,APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_next_approver_role(self, current_role):
@@ -767,7 +767,7 @@ class MaintenanceRequestDetailView(generics.RetrieveAPIView):
 
         return obj
 
-class MaintenanceRequestActionView(SignatureVerificationMixin,APIView):
+class MaintenanceRequestActionView(SignatureVerificationMixin,OTPVerificationMixin,APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_next_approver_role(self, current_role):
@@ -1420,7 +1420,7 @@ class ServiceRequestListView(generics.ListAPIView):
             return ServiceRequest.objects.filter(status='approved')
         return ServiceRequest.objects.none()
 
-class ServiceRequestActionView(SignatureVerificationMixin,APIView):
+class ServiceRequestActionView(SignatureVerificationMixin,OTPVerificationMixin,APIView):
     permission_classes = [permissions.IsAuthenticated]
    
     def get_next_approver_role(self, current_role):
