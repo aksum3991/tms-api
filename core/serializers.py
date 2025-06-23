@@ -3,8 +3,9 @@ from rest_framework import serializers
 from auth_app.models import User
 from django.utils.timezone import now 
 from auth_app.serializers import UserDetailSerializer
-from core.models import ActionLog, HighCostTransportRequest, MaintenanceRequest, MonthlyKilometerLog, RefuelingRequest, ServiceRequest, TransportRequest, Vehicle, Notification
-
+from core.models import ActionLog,CouponRequest, HighCostTransportRequest, MaintenanceRequest, MonthlyKilometerLog, RefuelingRequest, ServiceRequest, TransportRequest, Vehicle, Notification
+from rest_framework import serializers
+from django.utils import timezone
 class TransportRequestSerializer(serializers.ModelSerializer):
     requester = serializers.ReadOnlyField(source='requester.get_full_name')
     employees = serializers.PrimaryKeyRelatedField(queryset=User.objects.filter(role=User.EMPLOYEE), many=True)
@@ -257,11 +258,10 @@ class MonthlyKilometerLogSerializer(serializers.ModelSerializer):
         model = MonthlyKilometerLog
         fields = ['id','vehicle', 'kilometers_driven','recorded_by', 'created_at']
 
-from rest_framework import serializers
-from core.models import CouponRequest, MonthlyKilometerLog
-from django.utils import timezone
+
 
 class CouponRequestSerializer(serializers.ModelSerializer):
+    month = serializers.CharField() 
     class Meta:
         model = CouponRequest
         fields = ['id', 'vehicle', 'month', 'requester', 'created_at']
@@ -281,10 +281,18 @@ class CouponRequestSerializer(serializers.ModelSerializer):
         if not vehicle:
             raise serializers.ValidationError("No vehicle assigned to your account.")
 
-        # Set current month
+        month = attrs.get('month')
+        try:
+            # This will raise ValueError if the format is wrong
+            datetime.strptime(month, '%Y-%m')
+        except Exception:
+            raise serializers.ValidationError({"month": "month must be in 'YYYY-MM' format."})
         now = timezone.now()
-        month = now.strftime('%Y-%m')
-        month_display = now.strftime('%B %Y')
+        current_month = now.strftime('%Y-%m')
+        if month != current_month:
+            raise serializers.ValidationError({"month": "You can only request for the current month."})
+
+        month_display = datetime.strptime(month, '%Y-%m').strftime('%B %Y')
 
 
         # Check if kilometer log exists for this vehicle and month
@@ -292,9 +300,7 @@ class CouponRequestSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 f"Monthly kilometer log for {month_display} not found for your vehicle. Please log kilometers first."
             )
-
         attrs['vehicle'] = vehicle
-        attrs['month'] = month
         attrs['requester'] = user
         return attrs
 
