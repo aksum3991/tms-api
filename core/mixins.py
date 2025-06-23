@@ -36,6 +36,19 @@ class SignatureVerificationMixin:
         return None  # Passed
     
 
+# from rest_framework.response import Response
+# from rest_framework import status
+# from core.otp_manager import OTPManager
+
+# class OTPVerificationMixin:
+#     def verify_otp(self, user, otp_code, request=None):
+#         ip = request.META.get("REMOTE_ADDR", "unknown") if request else None
+#         valid, error = OTPManager.verify_otp(user, otp_code, ip)
+#         if not valid:
+#             return Response({"error": error}, status=status.HTTP_403_FORBIDDEN)
+#         return None
+# core/mixins.py
+
 from rest_framework.response import Response
 from rest_framework import status
 from core.otp_manager import OTPManager

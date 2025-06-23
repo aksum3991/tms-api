@@ -7,6 +7,8 @@ from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.core.validators import MinValueValidator
 from django.conf import settings
+from django.utils import timezone
+import datetime
 
 
 User = get_user_model()
@@ -326,3 +328,22 @@ class ActionLog(models.Model):
 
     def __str__(self):
         return f"{self.action_by.get_full_name()} {self.action} {self.content_type} #{self.object_id} on {self.timestamp}"
+
+class OTPCode(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    code = models.CharField(max_length=6)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    attempts = models.IntegerField(default=0)
+    locked_until = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['user'], name='unique_otp_per_user')
+        ]
+
+    def is_expired(self):
+        return timezone.now() > self.expires_at
+
+    def is_locked(self):
+        return self.locked_until and timezone.now() < self.locked_until

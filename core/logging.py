@@ -1,4 +1,4 @@
-from datetime import timezone
+from django.utils import timezone
 import logging
 logger = logging.getLogger(__name__)
 

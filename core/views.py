@@ -137,6 +137,8 @@ class HighCostTransportRequestActionView(SignatureVerificationMixin,OTPVerificat
             return Response({"error": "Invalid action."}, status=400)
         
         otp_code = request.data.get("otp_code")
+        if not otp_code:
+            return Response({"error": "OTP code is required."}, status=status.HTTP_400_BAD_REQUEST)
         otp_error = self.verify_otp(request.user, otp_code, request)
         if otp_error:
             return otp_error
@@ -617,6 +619,8 @@ class RefuelingRequestActionView(SignatureVerificationMixin,OTPVerificationMixin
         # if error_response:
         #     return error_response
         otp_code = request.data.get("otp_code")
+        if not otp_code:
+            return Response({"error": "OTP code is required."}, status=status.HTTP_400_BAD_REQUEST)
         otp_error = self.verify_otp(request.user, otp_code, request)
         if otp_error:
             return otp_error
@@ -643,18 +647,18 @@ class RefuelingRequestActionView(SignatureVerificationMixin,OTPVerificationMixin
                     refueling_request=refueling_request,
                     recipient=approver
                 )
-                if approver.phone_number:
-                    sms_message = (
-                        f"Refueling request for vehicle with license plate: {refueling_request.requesters_car.license_plate} "
-                        f"has been forwarded for your approval."
-                    )
-                    try:
-                        send_sms(approver.phone_number, sms_message)
-                    except Exception as e:
-                        logger.error(f"Failed to send SMS to {approver.full_name}: {e}")
+            #     if approver.phone_number:
+            #         sms_message = (
+            #             f"Refueling request for vehicle with license plate: {refueling_request.requesters_car.license_plate} "
+            #             f"has been forwarded for your approval."
+            #         )
+            #         try:
+            #             send_sms(approver.phone_number, sms_message)
+            #         except Exception as e:
+            #             logger.error(f"Failed to send SMS to {approver.full_name}: {e}")
 
             refueling_request.save()
-            log_action(request_obj=refueling_request,user=request.user,action="forwarded",remarks=request.data.get('remarks'))
+            # log_action(request_obj=refueling_request,user=request.user,action="forwarded",remarks=request.data.get('remarks'))
 
 
         # ====== REJECT ACTION ======
@@ -713,7 +717,7 @@ class RefuelingRequestActionView(SignatureVerificationMixin,OTPVerificationMixin
                 return Response({"error": f"{request.user.get_role_display()} cannot approve this request at this stage."}, 
                                 status=status.HTTP_403_FORBIDDEN)
         else:
-             Response({"error": "Unexpected error occurred."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Unexpected error occurred."}, status=status.HTTP_400_BAD_REQUEST)
         return  Response({"message": f"Request {action}ed successfully."}, status=status.HTTP_200_OK)
    
 class MaintenanceRequestListView(generics.ListAPIView):
@@ -794,6 +798,8 @@ class MaintenanceRequestActionView(SignatureVerificationMixin,OTPVerificationMix
         # if error_response:
         #     return error_response
         otp_code = request.data.get("otp_code")
+        if not otp_code:
+            return Response({"error": "OTP code is required."}, status=status.HTTP_400_BAD_REQUEST)
         otp_error = self.verify_otp(request.user, otp_code, request)
         if otp_error:
             return otp_error
@@ -1446,6 +1452,8 @@ class ServiceRequestActionView(SignatureVerificationMixin,OTPVerificationMixin,A
         # if error_response:
         #     return error_response
         otp_code = request.data.get("otp_code")
+        if not otp_code:
+            return Response({"error": "OTP code is required."}, status=status.HTTP_400_BAD_REQUEST)
         otp_error = self.verify_otp(request.user, otp_code, request)
         if otp_error:
             return otp_error
