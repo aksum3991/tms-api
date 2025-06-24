@@ -797,12 +797,12 @@ class MaintenanceRequestActionView(SignatureVerificationMixin,OTPVerificationMix
         # error_response = self.verify_signature(request)
         # if error_response:
         #     return error_response
-        # otp_code = request.data.get("otp_code")
-        # if not otp_code:
-        #     return Response({"error": "OTP code is required."}, status=status.HTTP_400_BAD_REQUEST)
-        # otp_error = self.verify_otp(request.user, otp_code, request)
-        # if otp_error:
-        #     return otp_error
+        otp_code = request.data.get("otp_code")
+        if not otp_code:
+            return Response({"error": "OTP code is required."}, status=status.HTTP_400_BAD_REQUEST)
+        otp_error = self.verify_otp(request.user, otp_code, request)
+        if otp_error:
+            return otp_error
         # ===== FORWARD LOGIC =====
         if action == 'forward':
             # General System MUST submit files and cost before forwarding
