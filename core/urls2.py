@@ -16,6 +16,7 @@ from core.views import (
     MaintenanceRequestDetailView,
     MaintenanceRequestListView,
     MaintenanceRequestOwnListView,
+    MarkMaintenancedVehicleAvailableView,
     MarkServicedVehicleAvailableView,
     RefuelingRequestActionView,
     RefuelingRequestCreateView,
@@ -30,6 +31,7 @@ from core.views import (
     ServicedVehiclesListView,
     TransportManagerServiceUpdateView,
     TripCompletionView,
+    VehiclesAfterMaintenanceListView,
     VehiclesDueForServiceView,
 )
 
@@ -39,7 +41,10 @@ urlpatterns = [
    path('<int:pk>/',MaintenanceRequestDetailView.as_view(),name="maintenance-request-detail"),
    path('<int:request_id>/action/',MaintenanceRequestActionView.as_view(),name="maintenance-request-action"),
    path('<int:request_id>/submit-files/', MaintenanceFileSubmissionView.as_view(), name='submit-maintenance-files'),
-   path('my/',MaintenanceRequestOwnListView.as_view(),name="maintenance-request-own")
+   path('my/',MaintenanceRequestOwnListView.as_view(),name="maintenance-request-own"),
+   path('maintained-vehicles/', VehiclesAfterMaintenanceListView.as_view(), name='maintained-vehicles-list'),
+   path('<int:vehicle_id>/mark-available/', MarkMaintenancedVehicleAvailableView.as_view(), name='mark-maintained-vehicle-available'),
+
 ]
 
 urlpatterns_refueling = [

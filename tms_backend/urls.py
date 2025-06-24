@@ -13,7 +13,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
 
-from core.views import AddMonthlyKilometersView, AvailableDriversView, AvailableOrganizationVehiclesListView, AvailableVehiclesListView, MyAssignedVehicleView, MyMonthlyKilometerLogsListView, ReportAPIView, RequestOTPView, UserActionLogDetailView, UserActionLogListView, VehicleViewSet
+from core.views import AddMonthlyKilometersView, AvailableDriversView, AvailableOrganizationVehiclesListView, AvailableVehiclesListView, MyAssignedVehicleView, MyMonthlyKilometerLogsListView, ReportAPIView, RequestOTPView, UserActionLogDetailView, UserActionLogListView, VehicleViewSet, VehiclesAfterMaintenanceListView
 
 router = DefaultRouter()
 router.register(r'vehicles',VehicleViewSet)
@@ -39,4 +39,5 @@ urlpatterns = [
     path("",include(router.urls)),
     path('otp/request/', RequestOTPView.as_view(), name='request-otp'),
     path('coupon-requests/', include(coupon_urls)),
+    path('maintained-vehicles/', VehiclesAfterMaintenanceListView.as_view(), name='vehicles-ready-after-maintenance'),
 ]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

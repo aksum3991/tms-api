@@ -14,7 +14,7 @@ from core.permissions import IsAllowedVehicleUser
 from core.serializers import ActionLogListSerializer, AssignedVehicleSerializer, CouponRequestSerializer, HighCostTransportRequestDetailSerializer, HighCostTransportRequestSerializer, MaintenanceRequestSerializer, MonthlyKilometerLogSerializer, RefuelingRequestDetailSerializer, RefuelingRequestSerializer, ReportFilterSerializer, ServiceRequestDetailSerializer, ServiceRequestSerializer, TransportRequestSerializer, NotificationSerializer, VehicleSerializer
 from core.services import NotificationService, RefuelingEstimator, compare_signatures, log_action, send_sms
 from auth_app.models import User
-from django.db.models import Q, F, OuterRef,Subquery
+from django.db.models import Q, F, OuterRef,Subquery,Exists
 from django.core.exceptions import ValidationError
 from rest_framework.generics import RetrieveAPIView
 from django.core.exceptions import PermissionDenied
@@ -797,12 +797,12 @@ class MaintenanceRequestActionView(SignatureVerificationMixin,OTPVerificationMix
         # error_response = self.verify_signature(request)
         # if error_response:
         #     return error_response
-        otp_code = request.data.get("otp_code")
-        if not otp_code:
-            return Response({"error": "OTP code is required."}, status=status.HTTP_400_BAD_REQUEST)
-        otp_error = self.verify_otp(request.user, otp_code, request)
-        if otp_error:
-            return otp_error
+        # otp_code = request.data.get("otp_code")
+        # if not otp_code:
+        #     return Response({"error": "OTP code is required."}, status=status.HTTP_400_BAD_REQUEST)
+        # otp_error = self.verify_otp(request.user, otp_code, request)
+        # if otp_error:
+        #     return otp_error
         # ===== FORWARD LOGIC =====
         if action == 'forward':
             # General System MUST submit files and cost before forwarding
@@ -880,6 +880,7 @@ class MaintenanceRequestActionView(SignatureVerificationMixin,OTPVerificationMix
             if current_role == User.BUDGET_MANAGER:
                 # Final approval
                 maintenance_request.status = 'approved'
+                # maintenance_request.requesters_car.mark_as_maintenance() 
                 maintenance_request.save()
                 log_action(request_obj=maintenance_request,user=request.user,action="approved",remarks=request.data.get("remarks"))
                 # Notify requester
@@ -1693,3 +1694,54 @@ class RequestOTPView(APIView):
         except PermissionError as e:
             return Response({"error": str(e)}, status=429)
         return Response({"message": "OTP sent to your phone."}, status=200)
+    
+class VehiclesAfterMaintenanceListView(generics.ListAPIView):
+    serializer_class = VehicleSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        if self.request.user.role != User.TRANSPORT_MANAGER:
+            raise PermissionDenied("Only transport managers can view this list.")
+
+        # Subquery: Does an approved maintenance request exist for this vehicle?
+        approved_maintenance_exists = MaintenanceRequest.objects.filter(
+            requesters_car=OuterRef('pk'),
+            status='approved'
+        )
+
+        return Vehicle.objects.annotate(
+            has_approved_maintenance=Exists(approved_maintenance_exists)
+        ).filter(
+            has_approved_maintenance=True,
+            status=Vehicle.MAINTENANCE
+        )
+
+class MarkMaintenancedVehicleAvailableView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, vehicle_id):
+        if request.user.role != User.TRANSPORT_MANAGER:
+            raise PermissionDenied("Only transport managers can perform this action.")
+
+        vehicle = get_object_or_404(Vehicle, id=vehicle_id)
+
+        # Check if there is any approved maintenance request for this vehicle
+        has_approved_maintenance = MaintenanceRequest.objects.filter(
+            requesters_car=vehicle,
+            status='approved'
+        ).exists()
+
+        if not has_approved_maintenance:
+            return Response({
+                'error': 'Vehicle cannot be marked as available until at least one maintenance request is approved.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        if vehicle.status == Vehicle.AVAILABLE:
+            return Response({'detail': 'Vehicle is already marked as available.'}, status=status.HTTP_200_OK)
+
+        vehicle.status = Vehicle.AVAILABLE
+        vehicle.save()
+
+        # Optionally log this or trigger notification here
+
+        return Response({'detail': 'Vehicle status updated to available.'}, status=status.HTTP_200_OK)
