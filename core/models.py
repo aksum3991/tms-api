@@ -8,7 +8,6 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.core.validators import MinValueValidator
 from django.conf import settings
 from django.utils import timezone
-import datetime
 
 
 User = get_user_model()
@@ -53,6 +52,13 @@ class Vehicle(models.Model):
     fuel_type = models.CharField(max_length=10, choices=FUEL_TYPE_CHOICES,default=BENZENE)
     total_kilometers = models.FloatField(default=0.0)  # Lifetime mileage
     last_service_kilometers = models.FloatField(default=0.0)  # km at last service
+    motor_number = models.CharField(max_length=100, unique=True)
+    chassis_number = models.CharField(max_length=100, unique=True)
+    libre_number = models.CharField(max_length=100, unique=True)
+    is_active = models.BooleanField(default=True, help_text="Used for activate and deactivate vehicles.")
+    is_deleted=models.BooleanField(default=False,help_text="Used for soft delete of vehicles.") 
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     fuel_efficiency = models.DecimalField(
         max_digits=5,
@@ -98,6 +104,14 @@ class Vehicle(models.Model):
         self.status = self.MAINTENANCE
         self.save()
 
+    def deactivate(self):
+        self.is_active = False
+        self.is_deleted = True
+        self.save()
+    def activate(self):
+        self.is_active = True
+        self.is_deleted = False
+        self.save()
 class MonthlyKilometerLog(models.Model):
     vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE)
     month = models.CharField(max_length=20)

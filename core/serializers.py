@@ -56,6 +56,7 @@ class VehicleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Vehicle
         fields = '__all__'
+        read_only_fields = ['id', 'created_at', 'updated_at']  # Make these fields read-only
 
     def validate_driver(self, value):
         """
@@ -82,7 +83,7 @@ class AssignedVehicleSerializer(serializers.ModelSerializer):
     driver_name = serializers.CharField(source="driver.full_name", read_only=True)
     class Meta:
         model = Vehicle
-        fields = ['id','driver_name', 'license_plate', 'model', 'capacity', 'status', 'source', 'rental_company']
+        fields = ['id','driver_name', 'license_plate', 'model', 'capacity', 'status', 'source', 'rental_company','motor_number', 'chassis_number', 'libre_number']
 
 
 class NotificationSerializer(serializers.ModelSerializer):

@@ -52,8 +52,24 @@ class VehicleViewSet(ModelViewSet):
 
         return Response(serializer.data)
 
+class DeactivateVehicleView(APIView):
+    permission_classes = [IsTransportManager, permissions.IsAuthenticated]
+
+    def post(self, request, vehicle_id):
+        vehicle = get_object_or_404(Vehicle, id=vehicle_id)
+        vehicle.deactivate()
+        return Response({"message": "Vehicle deactivated successfully."}, status=status.HTTP_200_OK)
+
+class ReactivateVehicleView(APIView):
+    permission_classes = [IsTransportManager, permissions.IsAuthenticated]
+
+    def post(self, request, vehicle_id):
+        vehicle = get_object_or_404(Vehicle, id=vehicle_id)
+        vehicle.activate()
+        return Response({"message": "Vehicle reactivated successfully."}, status=status.HTTP_200_OK)
+
 class AvailableVehiclesListView(generics.ListAPIView):
-    queryset = Vehicle.objects.filter(status=Vehicle.AVAILABLE).select_related("driver")
+    queryset = Vehicle.objects.filter(status=Vehicle.AVAILABLE, driver__role=User.DRIVER).select_related("driver")
     serializer_class = VehicleSerializer
     permission_classes = [IsTransportManager]
 class AvailableOrganizationVehiclesListView(generics.ListAPIView):
@@ -136,12 +152,12 @@ class HighCostTransportRequestActionView(SignatureVerificationMixin,OTPVerificat
         if action not in ['forward', 'reject', 'approve']:
             return Response({"error": "Invalid action."}, status=400)
         
-        # otp_code = request.data.get("otp_code")
-        # if not otp_code:
-        #     return Response({"error": "OTP code is required."}, status=status.HTTP_400_BAD_REQUEST)
-        # otp_error = self.verify_otp(request.user, otp_code, request)
-        # if otp_error:
-        #     return otp_error
+        otp_code = request.data.get("otp_code")
+        if not otp_code:
+            return Response({"error": "OTP code is required."}, status=status.HTTP_400_BAD_REQUEST)
+        otp_error = self.verify_otp(request.user, otp_code, request)
+        if otp_error:
+            return otp_error
         # error_response = self.verify_signature(request)
         # if error_response:
         #     return error_response
@@ -287,6 +303,8 @@ class HighCostTransportEstimateView(APIView):
         # Fetch and validate vehicle
         try:
             vehicle = Vehicle.objects.get(id=estimated_vehicle_id)
+            if not vehicle.is_active or vehicle.is_deleted:
+                return Response({"error": "This vehicle is deactivated and cannot be assigned."}, status=400)
             if not vehicle.fuel_efficiency or vehicle.fuel_efficiency <= 0 or vehicle.status != Vehicle.AVAILABLE:
                 return Response({
                     "error": "Selected vehicle must be available and have a valid fuel efficiency greater than zero."
@@ -327,6 +345,8 @@ class AssignVehicleAfterBudgetApprovalView(APIView):
             return Response({"error": "Vehicle can only be assigned after budget approval."}, status=400)
 
         vehicle = highcost_request.estimated_vehicle
+        if not vehicle.is_active or vehicle.is_deleted:
+            return Response({"error": "This vehicle is deactivated and cannot be assigned."}, status=400)
         if vehicle.status != Vehicle.AVAILABLE:
             return Response({"error": "Selected vehicle is not available."}, status=400)
 
@@ -618,12 +638,12 @@ class RefuelingRequestActionView(SignatureVerificationMixin,OTPVerificationMixin
         # error_response = self.verify_signature(request)
         # if error_response:
         #     return error_response
-        # otp_code = request.data.get("otp_code")
-        # if not otp_code:
-        #     return Response({"error": "OTP code is required."}, status=status.HTTP_400_BAD_REQUEST)
-        # otp_error = self.verify_otp(request.user, otp_code, request)
-        # if otp_error:
-        #     return otp_error
+        otp_code = request.data.get("otp_code")
+        if not otp_code:
+            return Response({"error": "OTP code is required."}, status=status.HTTP_400_BAD_REQUEST)
+        otp_error = self.verify_otp(request.user, otp_code, request)
+        if otp_error:
+            return otp_error
         # ====== FORWARD ACTION ======
         if action == 'forward':
             if current_role == User.TRANSPORT_MANAGER:
@@ -797,12 +817,12 @@ class MaintenanceRequestActionView(SignatureVerificationMixin,OTPVerificationMix
         # error_response = self.verify_signature(request)
         # if error_response:
         #     return error_response
-        # otp_code = request.data.get("otp_code")
-        # if not otp_code:
-        #     return Response({"error": "OTP code is required."}, status=status.HTTP_400_BAD_REQUEST)
-        # otp_error = self.verify_otp(request.user, otp_code, request)
-        # if otp_error:
-        #     return otp_error
+        otp_code = request.data.get("otp_code")
+        if not otp_code:
+            return Response({"error": "OTP code is required."}, status=status.HTTP_400_BAD_REQUEST)
+        otp_error = self.verify_otp(request.user, otp_code, request)
+        if otp_error:
+            return otp_error
         # ===== FORWARD LOGIC =====
         if action == 'forward':
             # General System MUST submit files and cost before forwarding
@@ -821,8 +841,8 @@ class MaintenanceRequestActionView(SignatureVerificationMixin,OTPVerificationMix
                         {"error": f"The following files must be submitted before forwarding: {', '.join(missing)}"},
                         status=status.HTTP_400_BAD_REQUEST
                     )
-            if current_role == User.TRANSPORT_MANAGER:
-                maintenance_request.requesters_car.mark_as_maintenance()
+            # if current_role == User.TRANSPORT_MANAGER:
+                # maintenance_request.requesters_car.mark_as_maintenance()
             next_role = self.get_next_approver_role(current_role)
             if not next_role:
                 return Response({"error": "No further approver available."}, status=status.HTTP_400_BAD_REQUEST)
@@ -1023,6 +1043,9 @@ class TransportRequestActionView(SignatureVerificationMixin,OTPVerificationMixin
 
             if not vehicle:
                 return Response({"error": "Invalid vehicle ID."}, status=status.HTTP_400_BAD_REQUEST)
+            
+            # if not vehicle.is_active or vehicle.is_deleted:
+            #     return Response({"error": "This vehicle is deactivated and cannot be assigned."}, status=400)
             
             if vehicle.status != Vehicle.AVAILABLE:
                 return Response({"error":"Vehicle is not available"})
@@ -1452,12 +1475,12 @@ class ServiceRequestActionView(SignatureVerificationMixin,OTPVerificationMixin,A
         # error_response = self.verify_signature(request)
         # if error_response:
         #     return error_response
-        # otp_code = request.data.get("otp_code")
-        # if not otp_code:
-        #     return Response({"error": "OTP code is required."}, status=status.HTTP_400_BAD_REQUEST)
-        # otp_error = self.verify_otp(request.user, otp_code, request)
-        # if otp_error:
-        #     return otp_error
+        otp_code = request.data.get("otp_code")
+        if not otp_code:
+            return Response({"error": "OTP code is required."}, status=status.HTTP_400_BAD_REQUEST)
+        otp_error = self.verify_otp(request.user, otp_code, request)
+        if otp_error:
+            return otp_error
         if action == 'forward':
             if current_role == User.GENERAL_SYSTEM:
                 missing = []
