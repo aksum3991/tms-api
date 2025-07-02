@@ -29,5 +29,13 @@ class Migration(migrations.Migration):
         model_name="vehicle",
         name="libre_number",
         field=models.CharField(max_length=100, unique=True, null=False, blank=False),
-    )
+    ),
+     migrations.AddField(
+            model_name="vehicle",
+            name="created_at",
+            field=models.DateTimeField(
+                auto_now_add=True, default=django.utils.timezone.now
+            ),
+            preserve_default=False,
+        ),
     ]

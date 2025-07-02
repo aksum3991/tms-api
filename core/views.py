@@ -303,8 +303,8 @@ class HighCostTransportEstimateView(APIView):
         # Fetch and validate vehicle
         try:
             vehicle = Vehicle.objects.get(id=estimated_vehicle_id)
-            if not vehicle.is_active or vehicle.is_deleted:
-                return Response({"error": "This vehicle is deactivated and cannot be assigned."}, status=400)
+            # if not vehicle.is_active or vehicle.is_deleted:
+            #     return Response({"error": "This vehicle is deactivated and cannot be assigned."}, status=400)
             if not vehicle.fuel_efficiency or vehicle.fuel_efficiency <= 0 or vehicle.status != Vehicle.AVAILABLE:
                 return Response({
                     "error": "Selected vehicle must be available and have a valid fuel efficiency greater than zero."
