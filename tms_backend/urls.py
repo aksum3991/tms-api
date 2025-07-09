@@ -13,7 +13,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
 
-from core.views import AddMonthlyKilometersView, AvailableDriversView, AvailableOrganizationVehiclesListView, AvailableVehiclesListView, MyAssignedVehicleView, MyMonthlyKilometerLogsListView, ReportAPIView, RequestOTPView, UserActionLogDetailView, UserActionLogListView, VehicleViewSet, VehiclesAfterMaintenanceListView
+from core.views import AddMonthlyKilometersView, AvailableDriversView, AvailableOrganizationVehiclesListView, AvailableVehiclesListView, MyAssignedVehicleView, MyMonthlyKilometerLogsListView, ReportAPIView, RequestOTPView, UserActionLogDetailView, UserActionLogListView, VehicleMarkAsMaintenanceView, VehicleViewSet, VehiclesAfterMaintenanceListView, VehiclesWithPendingMaintenanceRequestsView
 
 router = DefaultRouter()
 router.register(r'vehicles',VehicleViewSet)
@@ -40,4 +40,6 @@ urlpatterns = [
     path('otp/request/', RequestOTPView.as_view(), name='request-otp'),
     path('coupon-requests/', include(coupon_urls)),
     path('maintained-vehicles/', VehiclesAfterMaintenanceListView.as_view(), name='vehicles-ready-after-maintenance'),
+    path('vehicles/under-maintenance/list/', VehiclesWithPendingMaintenanceRequestsView.as_view(), name='vehicles-under-maintenance'),
+    path('vehicles/<int:vehicle_id>/mark-as-maintenance/', VehicleMarkAsMaintenanceView.as_view(), name='vehicle-mark-as-maintenance'),
 ]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

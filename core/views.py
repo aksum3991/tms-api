@@ -971,6 +971,37 @@ class MaintenanceFileSubmissionView(APIView):
         return Response({"message": "Maintenance files and cost submitted successfully."}, status=status.HTTP_200_OK)
 
 
+
+class VehiclesWithPendingMaintenanceRequestsView(generics.ListAPIView):
+    serializer_class = VehicleSerializer
+    permission_classes = [IsTransportManager]
+
+    def get_queryset(self):
+        # Ensure the user is a transport manager (if permission class is not enough)
+        user = self.request.user
+        if not hasattr(user, "role") or user.role != user.TRANSPORT_MANAGER:
+            return Vehicle.objects.none()
+
+        # Subquery: Does a pending or forwarded maintenance request exist for this vehicle?
+        pending_or_forwarded_exists = MaintenanceRequest.objects.filter(
+            requesters_car=OuterRef('pk'),
+            status__in=['pending', 'forwarded']
+        )
+        queryset = Vehicle.objects.annotate(
+            has_pending_maintenance=Exists(pending_or_forwarded_exists)
+        ).filter(
+            has_pending_maintenance=True
+        )
+        return queryset
+
+
+class VehicleMarkAsMaintenanceView(APIView):
+    permission_classes = [IsTransportManager, permissions.IsAuthenticated]
+
+    def post(self, request, vehicle_id):
+        vehicle = get_object_or_404(Vehicle, id=vehicle_id)
+        vehicle.mark_as_maintenance()
+        return Response({"message": "Vehicle status updated to maintenance."}, status=status.HTTP_200_OK)    
 class TransportRequestActionView(SignatureVerificationMixin,OTPVerificationMixin,APIView):
     permission_classes = [permissions.IsAuthenticated]
 

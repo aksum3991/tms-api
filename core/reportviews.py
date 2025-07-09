@@ -6,7 +6,7 @@ from core.models import ActionLog, HighCostTransportRequest, MaintenanceRequest,
 from django.db.models.functions import TruncMonth
 from django.db.models import Count,Sum, Q
 from datetime import datetime
-from auth_app.permissions import  IsTransportManager
+from auth_app.permissions import  IsCeo, IsTransportManager
 from itertools import chain
 from operator import attrgetter
 
@@ -31,7 +31,6 @@ class RequestTypeDistributionAPIView(APIView): # used for pie chart
         return Response(data)
 
 
-from calendar import month_name
 
 class MonthlyRequestTrendsAPIView(APIView):  # used for monthly trends bar chart
     permission_classes = [permissions.IsAuthenticated, IsTransportManager]
@@ -87,7 +86,7 @@ class MonthlyRequestTrendsAPIView(APIView):  # used for monthly trends bar chart
         }
         return Response(trends)
 class DashboardOverviewAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated, IsTransportManager]
+    permission_classes = [permissions.IsAuthenticated, IsTransportManager,IsCeo]
 
     def get(self, request):
         data = {
