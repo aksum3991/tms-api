@@ -56,11 +56,24 @@ class AdminApproveSerializer(serializers.ModelSerializer):
             instance.save()
             return instance    
 class UserDetailSerializer(serializers.ModelSerializer):
-  
+    password = serializers.CharField(
+        write_only=True, 
+        required=False,
+        allow_blank=True,
+        min_length=8,
+        style={'input_type': 'password'}
+    )
+
     class Meta:
         model = User
-        fields = ['id', 'full_name', 'email', 'phone_number', 'role', 'department', 'signature_image','is_active', 'is_pending', 'created_at', 'updated_at']
+        fields = ['id', 'full_name', 'email', 'phone_number', 'role', 'department', 'signature_image', 'is_active', 'is_pending', 'created_at', 'updated_at', 'password']
         read_only_fields = ['id', 'is_active', 'is_pending', 'created_at', 'updated_at']
+
+    def update(self, instance, validated_data):
+        password = validated_data.pop('password', None)
+        if password:  # Only update if password was provided
+            instance.set_password(password)  # This hashes the password
+        return super().update(instance, validated_data)
 
 class UserListSerializer(serializers.ModelSerializer):
     class Meta:
