@@ -53,6 +53,7 @@ class VehicleSerializer(serializers.ModelSerializer):
         required=False,  # Optional field
         allow_null=True
     )
+    department_name = serializers.CharField(source="department.name", read_only=True)
     class Meta:
         model = Vehicle
         fields = '__all__'
