@@ -50,10 +50,14 @@ ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
     "172.30.61.194",
+     "172.31.102.58",
+    "tms.gdop.gov.et",
 ]
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",  
-    "https://tmsfront.vercel.app"
+    "https://tmsfront.vercel.app",
+    "172.31.102.58",
+    "tms.gdop.gov.et",
 ]
 
 
