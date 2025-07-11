@@ -79,13 +79,7 @@ class Vehicle(models.Model):
         Department, null=True, blank=True, on_delete=models.SET_NULL, related_name='vehicles'
     )
 
-    def save(self, *args, **kwargs):
-        # Set department from driver if driver is assigned
-        if self.driver and hasattr(self.driver, 'department'):
-            self.department = self.driver.department
-        else:
-            self.department = None
-        super().save(*args, **kwargs)
+ 
     def clean(self):
         if self.source == self.RENTED and not self.rental_company:
             raise ValidationError({"rental_company": "Rental company is required for rented vehicles."})

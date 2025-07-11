@@ -10,7 +10,7 @@ def send_approval_email(user):
         f"{redirect_link}.\n\n"
         "Best regards,\nAdmin Team"
     )
-    from_email = 'infogdopsystems@gmail.com'  
+    from_email = 'mebrhit765@gmail.com'  
     recipient_list = [user.email]
     send_mail(subject, message, from_email, recipient_list)
 
@@ -25,7 +25,7 @@ def send_rejection_email(user, rejection_message):
         f"{resubmit_link}\n\n"
         "Best regards,\nAdmin Team"
     )
-    from_email = 'infogdopsystems@gmail.com'  
+    from_email = 'mebrhit765@gmail.com'  
     recipient_list = [user.email]
     send_mail(subject, message, from_email, recipient_list)
 
