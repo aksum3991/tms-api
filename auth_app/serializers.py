@@ -33,9 +33,6 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         user.status = "Pending"  
         user.save()
         return user
-       
-
-
 class AdminApproveSerializer(serializers.ModelSerializer):
     rejection_message = serializers.CharField(write_only=True,required=False)
     class Meta:
