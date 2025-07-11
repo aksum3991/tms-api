@@ -5,15 +5,13 @@ from rest_framework import status, permissions, viewsets, generics
 from rest_framework.viewsets import ModelViewSet
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.pagination import PageNumberPagination
-
+from rest_framework_simplejwt.views import TokenObtainPairView
 from auth_app.serializers import CustomTokenObtainPairSerializer
 from auth_app.permissions import IsSystemAdmin, ReadOnlyOrAuthenticated
 from auth_app.services import StandardResultsSetPagination, send_approval_email, send_rejection_email
 from core import serializers
 from .models import Department, User, UserStatusHistory
-from .serializers import DepartmentSerializer, UserDetailSerializer, UserListSerializer, UserRegistrationSerializer, AdminApproveSerializer, UserStatusHistorySerializer
-from rest_framework_simplejwt.views import TokenObtainPairView
-
+from .serializers import DepartmentSerializer, UserDetailSerializer, UserListSerializer, UserRegistrationSerializer, AdminApproveSerializer, UserStatusHistorySerializer, ChangePasswordSerializer
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
@@ -46,9 +44,37 @@ class UserDetailView(APIView):
 
     def put(self, request):
         user = request.user
+
+        # Prevent email update
         if "email" in request.data and request.data['email'] != user.email:
             return Response({"error": "Email cannot be updated."}, status=status.HTTP_400_BAD_REQUEST)
-        serializer = UserDetailSerializer(user, data=request.data, partial=True)
+
+        # Handle password change if password fields are present
+        if (
+            "old_password" in request.data
+            and "new_password" in request.data
+            and "confirm_password" in request.data
+        ):
+            password_serializer = ChangePasswordSerializer(
+                data={
+                    "old_password": request.data["old_password"],
+                    "new_password": request.data["new_password"],
+                    "confirm_password": request.data["confirm_password"],
+                },
+                context={"request": request},
+            )
+            if password_serializer.is_valid():
+                user.set_password(password_serializer.validated_data["new_password"])
+                user.save()
+            else:
+                return Response(password_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        # Remove password fields from data before updating other fields
+        update_data = request.data.copy()
+        for field in ["old_password", "new_password", "confirm_password"]:
+            update_data.pop(field, None)
+
+        serializer = UserDetailSerializer(user, data=update_data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
@@ -344,4 +370,4 @@ class SomeProtectedView(APIView):
     permission_classes = [permissions.IsAuthenticated]  # Only authenticated users can access
 
     def get(self, request):
-        return Response({"message": "Welcome!"}, status=status.HTTP_200_OK)  
+        return Response({"message": "Welcome!"}, status=status.HTTP_200_OK)
