@@ -86,7 +86,7 @@ class MonthlyRequestTrendsAPIView(APIView):  # used for monthly trends bar chart
         }
         return Response(trends)
 class DashboardOverviewAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated, IsTransportManager,IsCeo]
+    permission_classes = [permissions.IsAuthenticated, IsTransportManager|IsCeo]
 
     def get(self, request):
         data = {
