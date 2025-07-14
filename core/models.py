@@ -54,9 +54,9 @@ class Vehicle(models.Model):
     fuel_type = models.CharField(max_length=10, choices=FUEL_TYPE_CHOICES,default=BENZENE)
     total_kilometers = models.FloatField(default=0.0)  # Lifetime mileage
     last_service_kilometers = models.FloatField(default=0.0)  # km at last service
-    motor_number = models.CharField(max_length=100, unique=True)
-    chassis_number = models.CharField(max_length=100, unique=True)
-    libre_number = models.CharField(max_length=100, unique=True)
+    motor_number = models.CharField(max_length=100, unique=True,null=True, blank=True)
+    chassis_number = models.CharField(max_length=100, unique=True,null=True,blank=True)
+    libre_number = models.CharField(max_length=100, unique=True,null=True,blank=True)
     is_active = models.BooleanField(default=True, help_text="Used for activate and deactivate vehicles.")
     is_deleted=models.BooleanField(default=False,help_text="Used for soft delete of vehicles.") 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -66,6 +66,7 @@ class Vehicle(models.Model):
         max_digits=5,
         decimal_places=2,
         validators=[MinValueValidator(Decimal('0.1'))],
+        null=True,blank=True,
         help_text="Distance the vehicle can travel per liter of fuel (km/L)."
     )
     driver = models.OneToOneField(
