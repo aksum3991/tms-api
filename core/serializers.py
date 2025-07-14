@@ -75,8 +75,28 @@ class VehicleSerializer(serializers.ModelSerializer):
         # Check for rental company if source is rented
         source = data.get('source', getattr(self.instance, 'source', None))
         rental_company = data.get('rental_company', getattr(self.instance, 'rental_company', None))
+        department = data.get('department', getattr(self.instance, 'department', None))
+        drivers_location = data.get('drivers_location', getattr(self.instance, 'drivers_location', None))
+
         if source == Vehicle.RENTED and not rental_company:
             raise serializers.ValidationError({"rental_company": "Rental company is required for rented vehicles."})
+    
+        # Department logic
+        if source == Vehicle.RENTED:
+            if department:
+                raise serializers.ValidationError({"department": "Department should not be set for rented vehicles."})
+        elif source == Vehicle.ORGANIZATION_OWNED:
+            if not department:
+                raise serializers.ValidationError({"department": "Department is required for organization owned vehicles."})
+
+        # Drivers location logic
+        if source == Vehicle.RENTED:
+            # drivers_location is optional, no error if missing
+            pass
+        elif source == Vehicle.ORGANIZATION_OWNED:
+            if drivers_location:
+                raise serializers.ValidationError({"drivers_location": "Drivers location should not be set for organization owned vehicles."})
+
         return data
 
 class AssignedVehicleSerializer(serializers.ModelSerializer):

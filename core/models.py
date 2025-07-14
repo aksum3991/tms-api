@@ -78,6 +78,9 @@ class Vehicle(models.Model):
     department = models.ForeignKey(
         Department, null=True, blank=True, on_delete=models.SET_NULL, related_name='vehicles'
     )
+    drivers_location = models.CharField(
+        max_length=255, null=True, blank=True, help_text="Location of the driver for rented vehicles."
+    )
 
  
     def clean(self):
