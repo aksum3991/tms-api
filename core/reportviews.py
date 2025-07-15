@@ -12,7 +12,7 @@ from operator import attrgetter
 
 
 class RequestTypeDistributionAPIView(APIView): # used for pie chart
-    permission_classes = [permissions.IsAuthenticated, IsTransportManager]
+    permission_classes = [permissions.IsAuthenticated, IsTransportManager|IsCeo]
 
     def get(self, request):
         current_year = datetime.now().year
@@ -33,7 +33,7 @@ class RequestTypeDistributionAPIView(APIView): # used for pie chart
 
 
 class MonthlyRequestTrendsAPIView(APIView):  # used for monthly trends bar chart
-    permission_classes = [permissions.IsAuthenticated, IsTransportManager]
+    permission_classes = [permissions.IsAuthenticated, IsTransportManager|IsCeo]
 
     def get(self, request):
         current_year = datetime.now().year
@@ -104,7 +104,7 @@ class DashboardOverviewAPIView(APIView):
 
 
 class RecentVehicleRequestsAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated, IsTransportManager]
+    permission_classes = [permissions.IsAuthenticated, IsTransportManager |IsCeo]
 
     def get(self, request):
         # Get the latest 5 requests from all request types
@@ -150,11 +150,11 @@ from django.db.models import Sum, Q
 from .models import (
     MaintenanceRequest, RefuelingRequest,
     HighCostTransportRequest, ServiceRequest,
-    Vehicle, User
+    Vehicle
 )
 
 class TransportReportView(APIView):
-    permission_classes = [permissions.IsAuthenticated]  # Add IsTransportManager if needed
+    permission_classes = [permissions.IsAuthenticated,IsTransportManager|IsCeo]  # Add IsTransportManager if needed
 
     def get(self, request):
         request_type = request.GET.get('requesttype', 'all')

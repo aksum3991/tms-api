@@ -272,22 +272,36 @@ class HighCostTransportRequestDetailSerializer(serializers.ModelSerializer):
 
 class MonthlyKilometerLogSerializer(serializers.ModelSerializer):
     kilometers_driven = serializers.IntegerField(min_value=1)
-    vehicle = serializers.StringRelatedField(read_only=True)  # optional: for display
-    recorded_by = serializers.StringRelatedField(read_only=True) 
+    vehicle = serializers.SerializerMethodField(read_only=True)  # optional: for display
+    recorded_by = serializers.StringRelatedField(read_only=True)
 
     class Meta:
         model = MonthlyKilometerLog
         fields = ['id','vehicle', 'kilometers_driven','recorded_by', 'created_at']
+    def get_vehicle(self, obj):
+        if obj.vehicle:
+            return f"Model: {obj.vehicle.model} - License Plate: {obj.vehicle.license_plate}"
+        return ""
 
 
 
 class CouponRequestSerializer(serializers.ModelSerializer):
     month = serializers.CharField() 
+    vehicle_name = serializers.SerializerMethodField(read_only=True)
+    requester_name = serializers.SerializerMethodField(read_only=True)
     class Meta:
         model = CouponRequest
-        fields = ['id', 'vehicle', 'month', 'requester', 'created_at']
+        fields = ['id', 'vehicle','vehicle_name', 'requester','requester_name','month', 'created_at']
         read_only_fields = ['vehicle', 'month', 'requester', 'created_at']
 
+    def get_vehicle_name(self, obj):
+        # Customize as needed, e.g., model and license plate only
+        if obj.vehicle:
+            return f"Model: {obj.vehicle.model} - License Plate: {obj.vehicle.license_plate}"
+        return ""
+
+    def get_requester_name(self, obj):
+        return obj.requester.full_name
     def validate(self, attrs):
         user = self.context['request'].user
         allowed_roles = [

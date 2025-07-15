@@ -10,6 +10,7 @@ from core.views import (
     HighCostTransportRequestCreateView,
     HighCostTransportRequestDetailView,
     HighCostTransportRequestListView,
+    HighCostTransportRequestOwnListView,
     MaintenanceFileSubmissionView,
     MaintenanceRequestActionView,
     MaintenanceRequestCreateView,
@@ -63,7 +64,8 @@ urlpatterns_highcost = [
    path('<int:request_id>/estimate/',HighCostTransportEstimateView.as_view(),name="estimate-highcost-request"),
    path('<int:request_id>/action/',HighCostTransportRequestActionView.as_view(),name="highcost-request-action"),
    path('<int:request_id>/assign-vehicle/', AssignVehicleAfterBudgetApprovalView.as_view(),name='highcost-request-vehicle-assign'),
-   path('<int:request_id>/complete-trip/', TripCompletionView.as_view(), name='complete-trip-highcost-request')
+   path('<int:request_id>/complete-trip/', TripCompletionView.as_view(), name='complete-trip-highcost-request'),
+   path('my/', HighCostTransportRequestOwnListView.as_view(), name='my-highcost-requests'),
 ]
 
 urlpatterns_service=[

@@ -91,10 +91,20 @@ class AvailableDriversView(APIView):
     
 class HighCostTransportRequestCreateView(generics.CreateAPIView):
     serializer_class = HighCostTransportRequestSerializer
-    permission_classes = [permissions.IsAuthenticated, IsDepartmentManager]
+    permission_classes = [permissions.IsAuthenticated]
 
+    ALLOWED_ROLES = [
+        User.DEPARTMENT_MANAGER,
+        User.FINANCE_MANAGER,
+        User.TRANSPORT_MANAGER,
+        User.CEO,
+        User.GENERAL_SYSTEM,
+        User.BUDGET_MANAGER,
+    ]
     def perform_create(self, serializer):
         requester = self.request.user
+        if requester.role not in self.ALLOWED_ROLES:
+            raise serializers.ValidationError({"error": "You are not authorized to submit a high-cost request."})
         highcost_request = serializer.save(requester=requester)
         
         ceo = User.objects.filter(role=User.CEO, is_active=True).first()
@@ -129,7 +139,14 @@ class HighCostTransportRequestListView(generics.ListAPIView):
         elif user.role == User.DRIVER:
             return HighCostTransportRequest.objects.filter(vehicle__driver=user,status='approved')  # Optional: restrict to approved requests only
         return HighCostTransportRequest.objects.filter(requester=user)
+    
+class HighCostTransportRequestOwnListView(generics.ListAPIView):
+    serializer_class = HighCostTransportRequestSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
+    def get_queryset(self):
+        user = self.request.user
+        return HighCostTransportRequest.objects.filter(requester=user)
 class HighCostTransportRequestActionView(SignatureVerificationMixin,OTPVerificationMixin,APIView): 
     permission_classes = [permissions.IsAuthenticated]
 
@@ -480,7 +497,7 @@ class MaintenanceRequestCreateView(generics.CreateAPIView):
         """Override to set requester and their assigned vehicle automatically."""
         user = self.request.user
         if user.role not in self.ALLOWED_ROLES:
-            raise serializers.ValidationError({"error": "You are not authorized to submit a refueling request."})
+            raise serializers.ValidationError({"error": "You are not authorized to submit a maintenance request."})
         # if not hasattr(user, 'assigned_vehicle') or user.assigned_vehicle is None:
         #     raise serializers.ValidationError({"error": "You do not have an assigned vehicle."})
 
