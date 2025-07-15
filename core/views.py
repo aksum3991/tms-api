@@ -169,12 +169,12 @@ class HighCostTransportRequestActionView(SignatureVerificationMixin,OTPVerificat
         if action not in ['forward', 'reject', 'approve']:
             return Response({"error": "Invalid action."}, status=400)
         
-        otp_code = request.data.get("otp_code")
-        if not otp_code:
-            return Response({"error": "OTP code is required."}, status=status.HTTP_400_BAD_REQUEST)
-        otp_error = self.verify_otp(request.user, otp_code, request)
-        if otp_error:
-            return otp_error
+        # otp_code = request.data.get("otp_code")
+        # if not otp_code:
+        #     return Response({"error": "OTP code is required."}, status=status.HTTP_400_BAD_REQUEST)
+        # otp_error = self.verify_otp(request.user, otp_code, request)
+        # if otp_error:
+        #     return otp_error
         # error_response = self.verify_signature(request)
         # if error_response:
         #     return error_response
@@ -655,12 +655,12 @@ class RefuelingRequestActionView(SignatureVerificationMixin,OTPVerificationMixin
         # error_response = self.verify_signature(request)
         # if error_response:
         #     return error_response
-        otp_code = request.data.get("otp_code")
-        if not otp_code:
-            return Response({"error": "OTP code is required."}, status=status.HTTP_400_BAD_REQUEST)
-        otp_error = self.verify_otp(request.user, otp_code, request)
-        if otp_error:
-            return otp_error
+        # otp_code = request.data.get("otp_code")
+        # if not otp_code:
+        #     return Response({"error": "OTP code is required."}, status=status.HTTP_400_BAD_REQUEST)
+        # otp_error = self.verify_otp(request.user, otp_code, request)
+        # if otp_error:
+        #     return otp_error
         # ====== FORWARD ACTION ======
         if action == 'forward':
             if current_role == User.TRANSPORT_MANAGER:
@@ -834,12 +834,12 @@ class MaintenanceRequestActionView(SignatureVerificationMixin,OTPVerificationMix
         # error_response = self.verify_signature(request)
         # if error_response:
         #     return error_response
-        otp_code = request.data.get("otp_code")
-        if not otp_code:
-            return Response({"error": "OTP code is required."}, status=status.HTTP_400_BAD_REQUEST)
-        otp_error = self.verify_otp(request.user, otp_code, request)
-        if otp_error:
-            return otp_error
+        # otp_code = request.data.get("otp_code")
+        # if not otp_code:
+        #     return Response({"error": "OTP code is required."}, status=status.HTTP_400_BAD_REQUEST)
+        # otp_error = self.verify_otp(request.user, otp_code, request)
+        # if otp_error:
+        #     return otp_error
         # ===== FORWARD LOGIC =====
         if action == 'forward':
             # General System MUST submit files and cost before forwarding
@@ -1523,12 +1523,12 @@ class ServiceRequestActionView(SignatureVerificationMixin,OTPVerificationMixin,A
         # error_response = self.verify_signature(request)
         # if error_response:
         #     return error_response
-        otp_code = request.data.get("otp_code")
-        if not otp_code:
-            return Response({"error": "OTP code is required."}, status=status.HTTP_400_BAD_REQUEST)
-        otp_error = self.verify_otp(request.user, otp_code, request)
-        if otp_error:
-            return otp_error
+        # otp_code = request.data.get("otp_code")
+        # if not otp_code:
+        #     return Response({"error": "OTP code is required."}, status=status.HTTP_400_BAD_REQUEST)
+        # otp_error = self.verify_otp(request.user, otp_code, request)
+        # if otp_error:
+        #     return otp_error
         if action == 'forward':
             if current_role == User.GENERAL_SYSTEM:
                 missing = []
