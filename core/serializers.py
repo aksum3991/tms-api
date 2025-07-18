@@ -222,11 +222,12 @@ class RefuelingRequestDetailSerializer(serializers.ModelSerializer):
 class HighCostTransportRequestSerializer(serializers.ModelSerializer):
     employees = serializers.PrimaryKeyRelatedField(many=True,queryset=User.objects.filter(role=User.EMPLOYEE))
     requester = serializers.ReadOnlyField(source='requester.get_full_name')
+    employee_list_file = serializers.FileField(required=False, allow_null=True)
 
     class Meta:
         model = HighCostTransportRequest
         fields = [
-            'id','requester','start_day','return_day','start_time','destination','reason','employees','vehicle','status','current_approver_role','rejection_message','created_at','updated_at'
+            'id','requester','start_day','return_day','start_time','destination','reason','employees','employee_list_file','vehicle','status','current_approver_role','rejection_message','created_at','updated_at'
         ]
     def validate(self, data):
         """
@@ -234,13 +235,18 @@ class HighCostTransportRequestSerializer(serializers.ModelSerializer):
         """
         start_day = data.get("start_day")
         return_day = data.get("return_day")
+        employees = data.get('employees', None)
+        employee_list_file = data.get('employee_list_file', None)
 
         if start_day and start_day < now().date():
             raise serializers.ValidationError({"start_day": "Start date cannot be in the past."})
         
         if return_day and start_day and return_day < start_day:
             raise serializers.ValidationError({"return_day": "Return date cannot be before the start date."})
-
+        if not employees and not employee_list_file:
+            raise serializers.ValidationError(
+                "You must provide either a list of employees or upload an employee list file."
+            )
         return data
     
     def create(self, validated_data): 

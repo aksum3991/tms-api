@@ -13,7 +13,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
 
-from core.views import AddMonthlyKilometersView, AvailableDriversView, AvailableOrganizationVehiclesListView, AvailableVehiclesListView, MyAssignedVehicleView, MyMonthlyKilometerLogsListView, ReportAPIView, RequestOTPView, UserActionLogDetailView, UserActionLogListView, VehicleMarkAsMaintenanceView, VehicleViewSet, VehiclesAfterMaintenanceListView, VehiclesWithPendingMaintenanceRequestsView
+from core.views import AddMonthlyKilometersView, AvailableDriversView, AvailableOrganizationVehiclesListView, AvailableRentedVehiclesListView, AvailableVehiclesListView, MyAssignedVehicleView, MyMonthlyKilometerLogsListView, ReportAPIView, RequestOTPView, UserActionLogDetailView, UserActionLogListView, VehicleMarkAsMaintenanceView, VehicleViewSet, VehiclesAfterMaintenanceListView, VehiclesWithPendingMaintenanceRequestsView
 
 router = DefaultRouter()
 router.register(r'vehicles',VehicleViewSet)
@@ -24,6 +24,7 @@ urlpatterns = [
     path('available-drivers/', AvailableDriversView.as_view(), name='available-drivers'),
     path('available-vehicles/', AvailableVehiclesListView.as_view(), name='available-vehicles'), 
     path('organization-available-vehicles/', AvailableOrganizationVehiclesListView.as_view(), name='organization-available-vehicles'),
+    path('rented-available-vehicles/', AvailableRentedVehiclesListView.as_view(), name='rented-available-vehicles'),
     path('my-vehicle/', MyAssignedVehicleView.as_view(), name='my-assigned-vehicle'),
     path("maintenance-requests/",include(maintenance_urls)),
     path("refueling_requests/",include(refueling_urls)),

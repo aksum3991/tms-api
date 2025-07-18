@@ -79,7 +79,11 @@ class AvailableOrganizationVehiclesListView(generics.ListAPIView):
 
     # def get_queryset(self):
     #     return Vehicle.objects.filter(source=Vehicle.ORGANIZATION_OWNED, status=Vehicle.AVAILABLE,driver__role=User.DRIVER).select_related("driver")   
-
+class AvailableRentedVehiclesListView(generics.ListAPIView):
+    queryset = Vehicle.objects.filter(source=Vehicle.RENTED, status=Vehicle.AVAILABLE, driver__role=User.DRIVER).select_related("driver")
+    serializer_class = VehicleSerializer
+    permission_classes = [IsDepartmentManager]
+    
 class AvailableDriversView(APIView):
     permission_classes = [IsTransportManager]
 
@@ -215,7 +219,7 @@ class HighCostTransportRequestActionView(SignatureVerificationMixin,OTPVerificat
                 
                 if approver.phone_number:
                     sms_message = (
-                        f"High-cost transport request {highcost_request.destination} has been forwarded for your approval. here is the list of employees: {group_info}."
+                        f"Field Trip request {highcost_request.destination} has been forwarded for your approval. here is the list of employees: {group_info}."
                     )
                     try:
                         send_sms(approver.phone_number, sms_message)
@@ -283,7 +287,7 @@ class HighCostTransportRequestActionView(SignatureVerificationMixin,OTPVerificat
                 for user in [highcost_request.requester, finance_manager, transport_manager]:
                     if user.phone_number:
                         sms_message = (
-                            f"High-cost transport request {highcost_request.destination} has been approved by {approver}."
+                            f"Field Trip request {highcost_request.destination} has been approved by {approver}."
                         )
                         try:
                             send_sms(user.phone_number, sms_message)

@@ -86,10 +86,10 @@ class AdminApprovalView(APIView):
     def get(self,request):
         pending_users = User.objects.filter(is_pending=True)
 
-        paginator = PageNumberPagination()
-        paginator.page_size = 10  
-        paginated_users = paginator.paginate_queryset(pending_users, request)
-        serializer = UserDetailSerializer(paginated_users, many=True)
+        # paginator = PageNumberPagination()
+        # paginator.page_size = 10  
+        # paginated_users = paginator.paginate_queryset(pending_users, request)
+        serializer = UserDetailSerializer(pending_users, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)  
 
     def post(self, request, user_id):
@@ -249,7 +249,7 @@ class UserStatusHistoryViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = UserStatusHistory.objects.all().order_by('-timestamp')
     serializer_class = UserStatusHistorySerializer
     permission_classes = [permissions.IsAuthenticated] 
-    pagination_class = StandardResultsSetPagination
+    pagination_class = None
 
     def get_queryset(self):
         user = self.request.user
@@ -320,10 +320,10 @@ class ApprovedUsersView(APIView):
     
     def get(self, request):
         approved_users = User.objects.filter(is_active=True, is_pending=False)
-        paginator = PageNumberPagination()
-        paginator.page_size = 30
-        paginated_users = paginator.paginate_queryset(approved_users, request)
-        serializer = UserDetailSerializer(paginated_users, many=True)
+        # paginator = PageNumberPagination()
+        # paginator.page_size = 30
+        # paginated_users = paginator.paginate_queryset(approved_users, request)
+        serializer = UserDetailSerializer(approved_users, many=True)
         
         if not approved_users.exists():
             return Response({"message": "No approved users found."}, status=status.HTTP_204_NO_CONTENT)

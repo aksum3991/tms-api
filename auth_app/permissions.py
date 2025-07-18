@@ -16,6 +16,9 @@ class IsDepartmentManager(BasePermission):
 class IsCeo(BasePermission):
     def has_permission(self, request, view):
         return request.user.is_authenticated and request.user.role == User.CEO
+class IsGeneralSystem(BasePermission):
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and request.user.role == User.GENERAL_SYSTEM
 class ReadOnlyOrAuthenticated(BasePermission):
  
     def has_permission(self, request, view):

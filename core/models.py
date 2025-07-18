@@ -194,6 +194,10 @@ class HighCostTransportRequest(models.Model):
     trip_completed = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    employee_list_file = models.FileField(
+        upload_to='highcost_employee_lists/', null=True, blank=True,
+        help_text="Upload a file containing the list of employees for this request."
+    )
 
 
     def __str__(self):
