@@ -159,7 +159,7 @@ class TransportReportView(APIView):
     def get(self, request):
         request_type = request.GET.get('requesttype', 'all')
         vehicle_id = request.GET.get('vehicle')
-        driver_id = request.GET.get('driver')
+        drivers_id = request.GET.get('driver')
         month = request.GET.get('month')  # Format: 'YYYY-MM' or 'all'
 
         model_configs = [
@@ -215,8 +215,8 @@ class TransportReportView(APIView):
             if vehicle_id and vehicle_id != 'all':
                 filter_q &= Q(**{f"{cfg['vehicle_field']}_id": vehicle_id})
             # Driver filter
-            if driver_id and driver_id != 'all' and cfg['driver_field']:
-                filter_q &= Q(**{f"{cfg['driver_field']}_id": driver_id})
+            if drivers_id and drivers_id != 'all' and cfg['driver_field']:
+                filter_q &= Q(**{f"{cfg['driver_field']}_id": drivers_id})
             # Month filter
             if month and month != 'all':
                 try:

@@ -69,10 +69,8 @@ class Vehicle(models.Model):
         null=True,blank=True,
         help_text="Distance the vehicle can travel per liter of fuel (km/L)."
     )
-    driver = models.OneToOneField(
+    drivers = models.ManyToManyField(
         User, 
-        on_delete=models.SET_NULL, 
-        null=True, 
         blank=True, 
         related_name='assigned_vehicle'
     )  

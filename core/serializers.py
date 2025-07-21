@@ -47,30 +47,37 @@ class TransportRequestSerializer(serializers.ModelSerializer):
         return transport_request
           
 class VehicleSerializer(serializers.ModelSerializer):
-    driver_name = serializers.CharField(source="driver.full_name", read_only=True)  # Fetch driver's full name
-    driver = serializers.PrimaryKeyRelatedField(
+    driver_name = serializers.SerializerMethodField()
+    drivers = serializers.PrimaryKeyRelatedField(
         queryset=User.objects.exclude(role__in=[User.SYSTEM_ADMIN,User.EMPLOYEE]),  # Ensure only drivers are selectable
         required=False,  # Optional field
-        allow_null=True
+        allow_null=True,
+        many=True  # Allow multiple drivers
     )
     class Meta:
         model = Vehicle
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']  # Make these fields read-only
 
-    def validate_driver(self, value):
+    def get_driver_name(self, obj):
+        """Get the first driver's name if any drivers exist"""
+        if obj.drivers.exists():
+            return obj.drivers.first().full_name
+        return None
+
+    def validate_drivers(self, value):
         """
-        Ensure the assigned user is a driver and is not already assigned to another vehicle.
+        Ensure the assigned users are drivers and are not already assigned to other vehicles.
         """
         if not value:
             return value
 
         current_vehicle_id = self.instance.id if self.instance else None
-        if Vehicle.objects.filter(driver=value).exclude(id=current_vehicle_id).exists():
-            raise serializers.ValidationError("This driver is already assigned to another vehicle.")
-        
+        for driver in value:
+            if Vehicle.objects.filter(drivers=driver).exclude(id=current_vehicle_id).exists():
+                raise serializers.ValidationError(f"Driver {driver.full_name} is already assigned to another vehicle.")
         return value
-    
+
     def validate(self, data):
         # Check for rental company if source is rented
         source = data.get('source', getattr(self.instance, 'source', None))
@@ -80,7 +87,7 @@ class VehicleSerializer(serializers.ModelSerializer):
 
         if source == Vehicle.RENTED and not rental_company:
             raise serializers.ValidationError({"rental_company": "Rental company is required for rented vehicles."})
-    
+        
         # Department logic
         if source == Vehicle.RENTED:
             if department:
@@ -99,8 +106,21 @@ class VehicleSerializer(serializers.ModelSerializer):
 
         return data
 
+    def to_representation(self, instance):
+        """Add all drivers' details to the representation"""
+        data = super().to_representation(instance)
+        if instance.drivers.exists():
+            drivers_data = []
+            for driver in instance.drivers.all():
+                drivers_data.append({
+                    'id': driver.id,
+                    'full_name': driver.full_name,
+                })
+            data['drivers'] = drivers_data
+        return data
+
 class AssignedVehicleSerializer(serializers.ModelSerializer):
-    driver_name = serializers.CharField(source="driver.full_name", read_only=True)
+    driver_name = serializers.CharField(source="drivers.full_name", read_only=True)
     class Meta:
         model = Vehicle
         fields = ['id','driver_name', 'license_plate', 'model', 'capacity', 'status', 'source', 'rental_company','motor_number', 'chassis_number', 'libre_number']
@@ -157,8 +177,9 @@ class MaintenanceRequestSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         user = self.context['request'].user
+        vehicle=user.vehicle.first()
         validated_data['requester'] = user
-        validated_data['requesters_car'] = user.assigned_vehicle
+        validated_data['requesters_car'] = vehicle
         validated_data['status'] = 'pending'
         validated_data['current_approver_role'] = User.TRANSPORT_MANAGER
         return super().create(validated_data)
@@ -185,8 +206,10 @@ class RefuelingRequestSerializer(serializers.ModelSerializer):
     def validate(self, data):
         """Ensure the user has an assigned vehicle."""
         user = self.context['request'].user
-        if not hasattr(user, 'assigned_vehicle') or user.assigned_vehicle is None:
+        vehicle=user.vehicle.first()
+        if not vehicle:
             raise serializers.ValidationError("You do not have an assigned vehicle.")
+        data['requesters_car']=vehicle
         return data
     
 class RefuelingRequestDetailSerializer(serializers.ModelSerializer):
@@ -302,8 +325,9 @@ class CouponRequestSerializer(serializers.ModelSerializer):
 
     def get_vehicle_name(self, obj):
         # Customize as needed, e.g., model and license plate only
-        if obj.vehicle:
-            return f"Model: {obj.vehicle.model} - License Plate: {obj.vehicle.license_plate}"
+        if obj.vehicle.exists():
+            vehicle=obj.vehicle.first()
+            return f"Model: {vehicle.model} - License Plate: {vehicle.license_plate}"
         return ""
 
     def get_requester_name(self, obj):
@@ -316,12 +340,11 @@ class CouponRequestSerializer(serializers.ModelSerializer):
         ]
         if user.role not in allowed_roles:
             raise serializers.ValidationError("You are not allowed to send a coupon request.")
-
-        # Automatically get the user's assigned vehicle
-        vehicle = getattr(user, 'assigned_vehicle', None)
-        if not vehicle:
+        vehicles = user.vehicle.all()   
+        if not vehicles.exists():
             raise serializers.ValidationError("No vehicle assigned to your account.")
-
+        # Automatically get the user's assigned vehicle
+        vehicle = vehicles.first()
         month = attrs.get('month')
         try:
             # This will raise ValueError if the format is wrong

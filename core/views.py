@@ -69,18 +69,33 @@ class ReactivateVehicleView(APIView):
         return Response({"message": "Vehicle reactivated successfully."}, status=status.HTTP_200_OK)
 
 class AvailableVehiclesListView(generics.ListAPIView):
-    queryset = Vehicle.objects.filter(status=Vehicle.AVAILABLE, driver__role=User.DRIVER).select_related("driver")
     serializer_class = VehicleSerializer
-    permission_classes = [IsTransportManager]
+    permission_classes = [IsTransportManager|IsDepartmentManager]
+    def get_queryset(self):
+        return Vehicle.objects.filter(
+            status=Vehicle.AVAILABLE
+        ).prefetch_related(
+            'drivers'
+        ).filter(
+            drivers__role=User.DRIVER
+        ).distinct()
 class AvailableOrganizationVehiclesListView(generics.ListAPIView):
-    queryset = Vehicle.objects.filter(source=Vehicle.ORGANIZATION_OWNED, status=Vehicle.AVAILABLE,driver__role=User.DRIVER).select_related("driver")
+    queryset = Vehicle.objects.filter(
+        source=Vehicle.ORGANIZATION_OWNED,
+        status=Vehicle.AVAILABLE,
+        drivers__role=User.DRIVER
+    ).prefetch_related("drivers")
     serializer_class = VehicleSerializer
     permission_classes = [IsTransportManager]
 
     # def get_queryset(self):
     #     return Vehicle.objects.filter(source=Vehicle.ORGANIZATION_OWNED, status=Vehicle.AVAILABLE,driver__role=User.DRIVER).select_related("driver")   
 class AvailableRentedVehiclesListView(generics.ListAPIView):
-    queryset = Vehicle.objects.filter(source=Vehicle.RENTED, status=Vehicle.AVAILABLE, driver__role=User.DRIVER).select_related("driver")
+    queryset = Vehicle.objects.filter(
+        source=Vehicle.RENTED,
+        status=Vehicle.AVAILABLE,
+        drivers__role=User.DRIVER
+    ).prefetch_related("drivers")
     serializer_class = VehicleSerializer
     permission_classes = [IsDepartmentManager]
     
@@ -89,7 +104,7 @@ class AvailableDriversView(APIView):
 
     def get(self, request):
         drivers = User.objects.exclude(role__in=[User.SYSTEM_ADMIN,User.EMPLOYEE])  
-        drivers=drivers.filter(assigned_vehicle__isnull=True)
+        # drivers=drivers.filter(assigned_vehicle__isnull=True)
         serializer = UserDetailSerializer(drivers, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
     
