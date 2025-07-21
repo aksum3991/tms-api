@@ -27,3 +27,10 @@ class ReadOnlyOrAuthenticated(BasePermission):
             return True
         # Require authentication for other requests
         return request.user and request.user.is_authenticated
+class IsNotDriverOrAdminOrEmployee(permissions.BasePermission):
+    """
+    Custom permission to only allow users who are not drivers, system admins, or employees.
+    """
+    def has_permission(self, request, view):
+        user = request.user
+        return user.role not in [User.DRIVER, User.SYSTEM_ADMIN, User.EMPLOYEE]

@@ -4,14 +4,14 @@ from rest_framework import generics, permissions, status
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.response import Response
-from auth_app.permissions import IsDepartmentManager, IsTransportManager
+from auth_app.permissions import  IsNotDriverOrAdminOrEmployee, IsTransportManager
 from auth_app.serializers import UserDetailSerializer
 from core import serializers
 from core.mixins import OTPVerificationMixin, SignatureVerificationMixin
 from core.models import ActionLog, CouponRequest, HighCostTransportRequest, MaintenanceRequest, MonthlyKilometerLog, RefuelingRequest, ServiceRequest, TransportRequest, Vehicle, Notification
 from core.otp_manager import OTPManager
 from core.permissions import IsAllowedVehicleUser
-from core.serializers import ActionLogListSerializer, AssignedVehicleSerializer, CouponRequestSerializer, HighCostTransportRequestDetailSerializer, HighCostTransportRequestSerializer, MaintenanceRequestSerializer, MonthlyKilometerLogSerializer, RefuelingRequestDetailSerializer, RefuelingRequestSerializer, ReportFilterSerializer, ServiceRequestDetailSerializer, ServiceRequestSerializer, TransportRequestSerializer, NotificationSerializer, VehicleSerializer
+from core.serializers import ActionLogListSerializer, AssignedVehicleSerializer, CouponRequestSerializer, HighCostTransportRequestDetailSerializer, HighCostTransportRequestSerializer, MaintenanceRequestSerializer, MonthlyKilometerLogSerializer, RefuelingRequestDetailSerializer, RefuelingRequestSerializer, ServiceRequestDetailSerializer, ServiceRequestSerializer, TransportRequestSerializer, NotificationSerializer, VehicleSerializer
 from core.services import NotificationService, RefuelingEstimator, compare_signatures, log_action, send_sms
 from auth_app.models import User
 from django.db.models import Q, F, OuterRef,Subquery,Exists
@@ -70,7 +70,7 @@ class ReactivateVehicleView(APIView):
 
 class AvailableVehiclesListView(generics.ListAPIView):
     serializer_class = VehicleSerializer
-    permission_classes = [IsTransportManager|IsDepartmentManager]
+    permission_classes = [IsTransportManager]
     def get_queryset(self):
         return Vehicle.objects.filter(
             status=Vehicle.AVAILABLE
@@ -94,10 +94,10 @@ class AvailableRentedVehiclesListView(generics.ListAPIView):
     queryset = Vehicle.objects.filter(
         source=Vehicle.RENTED,
         status=Vehicle.AVAILABLE,
-        drivers__role=User.DRIVER
+        # drivers__role=User.DRIVER
     ).prefetch_related("drivers")
     serializer_class = VehicleSerializer
-    permission_classes = [IsDepartmentManager]
+    permission_classes = [IsNotDriverOrAdminOrEmployee]
     
 class AvailableDriversView(APIView):
     permission_classes = [IsTransportManager]
