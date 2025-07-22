@@ -93,19 +93,18 @@ class VehicleSerializer(serializers.ModelSerializer):
         return data
 
 class AssignedVehicleSerializer(serializers.ModelSerializer):
-    drivers = serializers.SerializerMethodField()
+    driver_name = serializers.SerializerMethodField()
     
     class Meta:
         model = Vehicle
-        fields = ['id', 'drivers', 'license_plate', 'model', 'capacity', 'status', 'source', 'rental_company',
+        fields = ['id', 'driver', 'driver_name', 'license_plate', 'model', 'capacity', 'status', 'source', 'rental_company',
                   'motor_number', 'chassis_number', 'libre_number']
 
-    def get_drivers(self, obj):
-        """Return a list of driver details"""
-        if obj.drivers.exists():
-            return [{'id': driver.id, 'full_name': driver.full_name} for driver in obj.drivers.all()]
-        return []
-
+    def get_driver_name(self, obj):
+        """Return the driver's full name if assigned"""
+        if obj.driver:
+            return obj.driver.full_name
+        return None
 
 class NotificationSerializer(serializers.ModelSerializer):
     recipient_name = serializers.CharField(source='recipient.full_name', read_only=True)

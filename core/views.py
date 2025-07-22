@@ -32,17 +32,11 @@ class MyAssignedVehicleView(APIView):
 
     def get(self, request):
         # Get all vehicles assigned to the user
-        vehicles = request.user.assigned_vehicle.all()
+        vehicles = Vehicle.objects.filter(driver=request.user)
         
         if not vehicles.exists():
             return Response({"message": "No vehicles assigned to you."}, status=status.HTTP_404_NOT_FOUND)
 
-        # If there's only one vehicle, return it directly
-        if vehicles.count() == 1:
-            serializer = AssignedVehicleSerializer(vehicles.first())
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        
-        # If there are multiple vehicles, return a list
         serializer = AssignedVehicleSerializer(vehicles, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
