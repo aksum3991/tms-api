@@ -48,11 +48,10 @@ class TransportRequestSerializer(serializers.ModelSerializer):
           
 class VehicleSerializer(serializers.ModelSerializer):
     driver_name = serializers.SerializerMethodField()
-    drivers = serializers.PrimaryKeyRelatedField(
+    driver = serializers.PrimaryKeyRelatedField(
         queryset=User.objects.exclude(role__in=[User.SYSTEM_ADMIN,User.EMPLOYEE]),  # Ensure only drivers are selectable
         required=False,  # Optional field
-        allow_null=True,
-        many=True  # Allow multiple drivers
+        allow_null=True
     )
     class Meta:
         model = Vehicle
@@ -60,23 +59,10 @@ class VehicleSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at']  # Make these fields read-only
 
     def get_driver_name(self, obj):
-        """Get the first driver's name if any drivers exist"""
-        if obj.drivers.exists():
-            return obj.drivers.first().full_name
+        """Get the driver's name if a driver is assigned"""
+        if obj.driver:
+            return obj.driver.full_name
         return None
-
-    def validate_drivers(self, value):
-        """
-        Ensure the assigned users are drivers and are not already assigned to other vehicles.
-        """
-        if not value:
-            return value
-
-        current_vehicle_id = self.instance.id if self.instance else None
-        for driver in value:
-            if Vehicle.objects.filter(drivers=driver).exclude(id=current_vehicle_id).exists():
-                raise serializers.ValidationError(f"Driver {driver.full_name} is already assigned to another vehicle.")
-        return value
 
     def validate(self, data):
         # Check for rental company if source is rented
@@ -104,19 +90,6 @@ class VehicleSerializer(serializers.ModelSerializer):
             if drivers_location:
                 raise serializers.ValidationError({"drivers_location": "Drivers location should not be set for organization owned vehicles."})
 
-        return data
-
-    def to_representation(self, instance):
-        """Add all drivers' details to the representation"""
-        data = super().to_representation(instance)
-        if instance.drivers.exists():
-            drivers_data = []
-            for driver in instance.drivers.all():
-                drivers_data.append({
-                    'id': driver.id,
-                    'full_name': driver.full_name,
-                })
-            data['drivers'] = drivers_data
         return data
 
 class AssignedVehicleSerializer(serializers.ModelSerializer):

@@ -78,33 +78,33 @@ class ReactivateVehicleView(APIView):
 class AvailableVehiclesListView(generics.ListAPIView):
     serializer_class = VehicleSerializer
     permission_classes = [IsTransportManager]
+
     def get_queryset(self):
         return Vehicle.objects.filter(
             status=Vehicle.AVAILABLE
-        ).prefetch_related(
-            'drivers'
-        ).filter(
-            drivers__role=User.DRIVER
+        ).select_related(
+            'driver'
         ).distinct()
+
 class AvailableOrganizationVehiclesListView(generics.ListAPIView):
-    queryset = Vehicle.objects.filter(
-        source=Vehicle.ORGANIZATION_OWNED,
-        status=Vehicle.AVAILABLE,
-        drivers__role=User.DRIVER
-    ).prefetch_related("drivers")
     serializer_class = VehicleSerializer
     permission_classes = [IsTransportManager]
 
-    # def get_queryset(self):
-    #     return Vehicle.objects.filter(source=Vehicle.ORGANIZATION_OWNED, status=Vehicle.AVAILABLE,driver__role=User.DRIVER).select_related("driver")   
+    def get_queryset(self):
+        return Vehicle.objects.filter(
+            source=Vehicle.ORGANIZATION_OWNED,
+            status=Vehicle.AVAILABLE
+        ).select_related("driver")
+
 class AvailableRentedVehiclesListView(generics.ListAPIView):
-    queryset = Vehicle.objects.filter(
-        source=Vehicle.RENTED,
-        status=Vehicle.AVAILABLE,
-        # drivers__role=User.DRIVER
-    ).prefetch_related("drivers")
     serializer_class = VehicleSerializer
     permission_classes = [IsNotDriverOrAdminOrEmployee]
+    
+    def get_queryset(self):
+        return Vehicle.objects.filter(
+            source=Vehicle.RENTED,
+            status=Vehicle.AVAILABLE
+        ).select_related("driver")
     
 class AvailableDriversView(APIView):
     permission_classes = [IsTransportManager]
