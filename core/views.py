@@ -28,15 +28,22 @@ import logging
 
 logger = logging.getLogger(__name__)
 class MyAssignedVehicleView(APIView):
-    permission_classes = [permissions.IsAuthenticated,IsAllowedVehicleUser]
+    permission_classes = [permissions.IsAuthenticated, IsAllowedVehicleUser]
 
     def get(self, request):
-        try:
-            vehicle = request.user.assigned_vehicle  # Thanks to related_name='assigned_vehicle'
-        except Vehicle.DoesNotExist:
-            return Response({"message": "No vehicle assigned to you."}, status=status.HTTP_404_NOT_FOUND)
+        # Get all vehicles assigned to the user
+        vehicles = request.user.assigned_vehicle.all()
+        
+        if not vehicles.exists():
+            return Response({"message": "No vehicles assigned to you."}, status=status.HTTP_404_NOT_FOUND)
 
-        serializer = AssignedVehicleSerializer(vehicle)
+        # If there's only one vehicle, return it directly
+        if vehicles.count() == 1:
+            serializer = AssignedVehicleSerializer(vehicles.first())
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        
+        # If there are multiple vehicles, return a list
+        serializer = AssignedVehicleSerializer(vehicles, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 class VehicleViewSet(ModelViewSet):
