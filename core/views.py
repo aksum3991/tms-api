@@ -537,7 +537,7 @@ class MaintenanceRequestCreateView(generics.CreateAPIView):
             raise serializers.ValidationError({"error": "No active Transport Manager found."})
 
         # Save the maintenance request
-        maintenance_request = serializer.save(requester=user, requesters_car=user.assigned_vehicle)
+        maintenance_request = serializer.save(requester=user)
 
         # Now correctly call the notification service with the correct parameters
         NotificationService.send_maintenance_notification(
@@ -548,7 +548,7 @@ class MaintenanceRequestCreateView(generics.CreateAPIView):
 
         if transport_manager.phone_number:
             message = (
-                f"A new maintenance request for vehicle {user.assigned_vehicle.license_plate} "
+                f"A new maintenance request for vehicle {maintenance_request.requesters_car.license_plate} "
                 f"has been submitted by {user.full_name}. Please review and take action."
             )
             try:

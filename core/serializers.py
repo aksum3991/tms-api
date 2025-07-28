@@ -119,10 +119,13 @@ class NotificationSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-
 class MaintenanceRequestSerializer(serializers.ModelSerializer):
     requester_name = serializers.SerializerMethodField()
     requesters_car_name = serializers.SerializerMethodField()
+    requesters_car = serializers.PrimaryKeyRelatedField(
+        queryset=Vehicle.objects.all(),  # We'll restrict in validate()
+        required=True
+    )
 
     class Meta:
         model = MaintenanceRequest
@@ -132,7 +135,7 @@ class MaintenanceRequestSerializer(serializers.ModelSerializer):
             'maintenance_total_cost', 'maintenance_letter', 'receipt_file'
         ]
         read_only_fields = [
-            'requester', 'requester_name', 'requesters_car', 'requesters_car_name',
+            'requester', 'requester_name', 'requesters_car_name',
             'status', 'current_approver_role'
         ]
 
@@ -143,8 +146,15 @@ class MaintenanceRequestSerializer(serializers.ModelSerializer):
         return f"{obj.requesters_car.model} ({obj.requesters_car.license_plate})" if obj.requesters_car else "N/A"
 
     def validate(self, data):
-
         user = self.context['request'].user
+        vehicle = data.get('requesters_car')
+        # Only allow vehicles assigned to this user
+        if not Vehicle.objects.filter(id=vehicle.id, driver=user).exists():
+            raise serializers.ValidationError("You can only request maintenance for vehicles assigned to you.")
+        # Only allow organization owned vehicles
+        if vehicle.source != Vehicle.ORGANIZATION_OWNED:
+            raise serializers.ValidationError("Maintenance requests are only allowed for organization-owned vehicles.")
+
         date = data.get('date')
         if date and date < now().date():
             raise serializers.ValidationError({"date": "Date cannot be in the past."})
@@ -157,9 +167,7 @@ class MaintenanceRequestSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         user = self.context['request'].user
-        vehicle=user.vehicle.first()
         validated_data['requester'] = user
-        validated_data['requesters_car'] = vehicle
         validated_data['status'] = 'pending'
         validated_data['current_approver_role'] = User.TRANSPORT_MANAGER
         return super().create(validated_data)
