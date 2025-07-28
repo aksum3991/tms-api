@@ -334,20 +334,23 @@ class CouponRequestSerializer(serializers.ModelSerializer):
     month = serializers.CharField() 
     vehicle_name = serializers.SerializerMethodField(read_only=True)
     requester_name = serializers.SerializerMethodField(read_only=True)
+    vehicle = serializers.PrimaryKeyRelatedField(
+        queryset=Vehicle.objects.all(),  # We'll restrict in validate()
+        required=True
+    )
     class Meta:
         model = CouponRequest
-        fields = ['id', 'vehicle','vehicle_name', 'requester','requester_name','month', 'created_at']
-        read_only_fields = ['vehicle', 'month', 'requester', 'created_at']
+        fields = ['id', 'vehicle', 'vehicle_name', 'requester', 'requester_name', 'month', 'created_at']
+        read_only_fields = ['id', 'vehicle_name', 'requester', 'requester_name', 'created_at']
 
     def get_vehicle_name(self, obj):
-        # Customize as needed, e.g., model and license plate only
-        if obj.vehicle.exists():
-            vehicle=obj.vehicle.first()
-            return f"Model: {vehicle.model} - License Plate: {vehicle.license_plate}"
+        if obj.vehicle:
+            return f"Model: {obj.vehicle.model} - License Plate: {obj.vehicle.license_plate}"
         return ""
 
     def get_requester_name(self, obj):
-        return obj.requester.full_name
+        return obj.requester.full_name if obj.requester else ""
+
     def validate(self, attrs):
         user = self.context['request'].user
         allowed_roles = [
@@ -356,17 +359,18 @@ class CouponRequestSerializer(serializers.ModelSerializer):
         ]
         if user.role not in allowed_roles:
             raise serializers.ValidationError("You are not allowed to send a coupon request.")
-        vehicles = user.vehicle.all()   
-        if not vehicles.exists():
-            raise serializers.ValidationError("No vehicle assigned to your account.")
-        # Automatically get the user's assigned vehicle
-        vehicle = vehicles.first()
+
+        vehicle = attrs.get('vehicle')
+        # Ensure the vehicle is assigned to the user
+        if vehicle.driver != user:
+            raise serializers.ValidationError("You can only request a coupon for vehicles assigned to you.")
+
         month = attrs.get('month')
         try:
-            # This will raise ValueError if the format is wrong
             datetime.strptime(month, '%Y-%m')
         except Exception:
             raise serializers.ValidationError({"month": "month must be in 'YYYY-MM' format."})
+
         now = timezone.now()
         current_month = now.strftime('%Y-%m')
         if month != current_month:
@@ -374,13 +378,10 @@ class CouponRequestSerializer(serializers.ModelSerializer):
 
         month_display = datetime.strptime(month, '%Y-%m').strftime('%B %Y')
 
-
-        # Check if kilometer log exists for this vehicle and month
         if not MonthlyKilometerLog.objects.filter(vehicle=vehicle, month=month).exists():
             raise serializers.ValidationError(
                 f"Monthly kilometer log for {month_display} not found for your vehicle. Please log kilometers first."
             )
-        attrs['vehicle'] = vehicle
         attrs['requester'] = user
         return attrs
 
