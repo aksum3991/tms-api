@@ -167,11 +167,21 @@ class MaintenanceRequestSerializer(serializers.ModelSerializer):
 class RefuelingRequestSerializer(serializers.ModelSerializer):
     requester_name = serializers.SerializerMethodField()
     requesters_car_name = serializers.SerializerMethodField()
+    requesters_car = serializers.PrimaryKeyRelatedField(
+        queryset=Vehicle.objects.all(),  # We'll restrict in validate()
+        required=True
+    )
     
     class Meta:
         model = RefuelingRequest
-        fields = ["id", "requester","requester_name", "requesters_car", 'requesters_car_name',"destination", "status", "current_approver_role", "created_at"]
-        read_only_fields = ['id','requester','requester_name','requesters_car', 'requesters_car_name', 'status', 'current_approver_role','created_at',]
+        fields = [
+            "id", "requester", "requester_name", "requesters_car", "requesters_car_name",
+            "destination", "status", "current_approver_role", "created_at"
+        ]
+        read_only_fields = [
+            'id', 'requester', 'requester_name', 'requesters_car_name',
+            'status', 'current_approver_role', 'created_at'
+        ]
     
     def get_requester_name(self, obj):
         """Return the full name of the requester instead of their ID."""
@@ -184,13 +194,18 @@ class RefuelingRequestSerializer(serializers.ModelSerializer):
         return "No Assigned Vehicle"
    
     def validate(self, data):
-        """Ensure the user has an assigned vehicle."""
+        """Ensure the selected vehicle is assigned to the user."""
         user = self.context['request'].user
-        vehicle=user.vehicle.first()
-        if not vehicle:
-            raise serializers.ValidationError("You do not have an assigned vehicle.")
-        data['requesters_car']=vehicle
+        vehicle = data.get('requesters_car')
+        # Only allow vehicles assigned to this user
+        if not Vehicle.objects.filter(id=vehicle.id, driver=user).exists():
+            raise serializers.ValidationError("You can only request refueling for vehicles assigned to you.")
         return data
+
+    def create(self, validated_data):
+        user = self.context['request'].user
+        validated_data['requester'] = user
+        return super().create(validated_data)
     
 class RefuelingRequestDetailSerializer(serializers.ModelSerializer):
     requester_name = serializers.SerializerMethodField()

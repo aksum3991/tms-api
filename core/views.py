@@ -136,6 +136,16 @@ class HighCostTransportRequestCreateView(generics.CreateAPIView):
             highcost_request=highcost_request,
             recipient=ceo
         )
+        if ceo.phone_number:
+            message = (
+                f"A new high-cost transport request has been submitted by {requester.full_name}. "
+                f"Please review and take action."
+            )
+            try:
+                send_sms(ceo.phone_number, message)
+            except Exception as e:
+                logger.error(f"Failed to send SMS to {ceo.full_name}: {e}")
+
 
 class HighCostTransportRequestListView(generics.ListAPIView):
     queryset = HighCostTransportRequest.objects.all()
@@ -312,7 +322,7 @@ class HighCostTransportRequestActionView(SignatureVerificationMixin,OTPVerificat
             else:
                 return Response({"error": "Approval not allowed at this stage."}, status=403)
 
-        return Response({"message": f"Request {action}ed successfully."}, status=200)
+        return Response({"message": f"Request {action}d successfully."}, status=200)
 
 
 class HighCostTransportEstimateView(APIView):
@@ -512,7 +522,7 @@ class MaintenanceRequestCreateView(generics.CreateAPIView):
         User.GENERAL_SYSTEM,
         User.BUDGET_MANAGER,
     ]
-
+   
     def perform_create(self, serializer):
         """Override to set requester and their assigned vehicle automatically."""
         user = self.request.user
@@ -534,8 +544,17 @@ class MaintenanceRequestCreateView(generics.CreateAPIView):
             notification_type='new_maintenance',
             maintenance_request=maintenance_request,  
             recipient=transport_manager  
-        )       
+        ) 
 
+        if transport_manager.phone_number:
+            message = (
+                f"A new maintenance request for vehicle {user.assigned_vehicle.license_plate} "
+                f"has been submitted by {user.full_name}. Please review and take action."
+            )
+            try:
+                send_sms(transport_manager.phone_number, message)
+            except Exception as e:
+                logger.error(f"Failed to send SMS to {transport_manager.full_name}: {e}")
 
 class RefuelingRequestCreateView(generics.CreateAPIView):
     serializer_class = RefuelingRequestSerializer
@@ -556,18 +575,28 @@ class RefuelingRequestCreateView(generics.CreateAPIView):
         user = self.request.user
         if user.role not in self.ALLOWED_ROLES:
             raise serializers.ValidationError({"error": "You are not authorized to submit a refueling request."})
-        if not hasattr(user, 'assigned_vehicle') or user.assigned_vehicle is None:
-            raise serializers.ValidationError({"error": "You do not have an assigned vehicle."})
+        
+        refueling_request=serializer.save(requester=user)
         transport_manager = User.objects.filter(role=User.TRANSPORT_MANAGER, is_active=True).first()
 
         if not transport_manager:
             raise serializers.ValidationError({"error": "No active Transport Manager found."})
-        refueling_request=serializer.save(requester=user,requesters_car=user.assigned_vehicle)
         NotificationService.send_refueling_notification(
             notification_type='new_refueling',
             refueling_request=refueling_request,
             recipient=transport_manager
         )
+        if transport_manager.phone_number:
+            message = (
+                f"A new refueling request for vehicle {refueling_request.requesters_car.license_plate} "
+                f"has been submitted by {user.full_name}. Please review and take action."
+            )
+            try:
+                send_sms(transport_manager.phone_number, message)
+            except Exception as e:
+                logger.error(f"Failed to send SMS to {transport_manager.full_name}: {e}")
+
+
 class RefuelingRequestListView(generics.ListAPIView):
     queryset = RefuelingRequest.objects.all()
     serializer_class = RefuelingRequestSerializer
@@ -704,15 +733,15 @@ class RefuelingRequestActionView(SignatureVerificationMixin,OTPVerificationMixin
                     refueling_request=refueling_request,
                     recipient=approver
                 )
-            #     if approver.phone_number:
-            #         sms_message = (
-            #             f"Refueling request for vehicle with license plate: {refueling_request.requesters_car.license_plate} "
-            #             f"has been forwarded for your approval."
-            #         )
-            #         try:
-            #             send_sms(approver.phone_number, sms_message)
-            #         except Exception as e:
-            #             logger.error(f"Failed to send SMS to {approver.full_name}: {e}")
+                if approver.phone_number:
+                    sms_message = (
+                        f"Refueling request for vehicle with license plate: {refueling_request.requesters_car.license_plate} "
+                        f"has been forwarded for your approval."
+                    )
+                    try:
+                        send_sms(approver.phone_number, sms_message)
+                    except Exception as e:
+                        logger.error(f"Failed to send SMS to {approver.full_name}: {e}")
 
             refueling_request.save()
             # log_action(request_obj=refueling_request,user=request.user,action="forwarded",remarks=request.data.get('remarks'))
@@ -775,7 +804,7 @@ class RefuelingRequestActionView(SignatureVerificationMixin,OTPVerificationMixin
                                 status=status.HTTP_403_FORBIDDEN)
         else:
             return Response({"error": "Unexpected error occurred."}, status=status.HTTP_400_BAD_REQUEST)
-        return  Response({"message": f"Request {action}ed successfully."}, status=status.HTTP_200_OK)
+        return  Response({"message": f"Request {action}d successfully."}, status=status.HTTP_200_OK)
    
 class MaintenanceRequestListView(generics.ListAPIView):
     queryset = MaintenanceRequest.objects.all()
@@ -1165,7 +1194,7 @@ class TransportRequestActionView(SignatureVerificationMixin,OTPVerificationMixin
             except Exception as sms_error:
                 logger.error(f"Failed to send SMS: {sms_error}")
         transport_request.save()
-        return Response({"message": f"Request {action}ed successfully."}, status=status.HTTP_200_OK)
+        return Response({"message": f"Request {action}d successfully."}, status=status.HTTP_200_OK)
 
 class TransportRequestHistoryView(generics.ListAPIView):
     serializer_class = TransportRequestSerializer
@@ -1288,6 +1317,10 @@ class AddMonthlyKilometersView(generics.CreateAPIView):
         vehicle_id = self.kwargs.get('vehicle_id')
         vehicle = get_object_or_404(Vehicle, id=vehicle_id)
 
+        # Ensure the vehicle has a driver assigned
+        if not vehicle.driver:
+            raise PermissionDenied("This vehicle does not have a driver assigned.")
+        # Check if the current user is the assigned driver
         if vehicle.driver != self.request.user:
             raise PermissionDenied("You are not authorized to add kilometers for this vehicle.")    
 
@@ -1312,9 +1345,10 @@ class AddMonthlyKilometersView(generics.CreateAPIView):
         vehicle.total_kilometers += kilometers
         vehicle.save()
 
+        # Get recipients for notifications
         transport_managers = User.objects.filter(role=User.TRANSPORT_MANAGER, is_active=True)
         general_systems = User.objects.filter(role=User.GENERAL_SYSTEM, is_active=True)
-        driver = vehicle.driver  # or vehicle.assigned_driver depending on your model
+        driver = vehicle.driver  # Get the single driver assigned to this vehicle
 
         if not driver:
             raise ValueError("Vehicle has no assigned driver.")
@@ -1326,7 +1360,7 @@ class AddMonthlyKilometersView(generics.CreateAPIView):
                 vehicle=vehicle,
                 recipients=recipients
             )
-
+            
 class CouponRequestCreateView(generics.CreateAPIView):
     serializer_class = CouponRequestSerializer
     permission_classes = [permissions.IsAuthenticated]
