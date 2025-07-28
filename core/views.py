@@ -1314,31 +1314,23 @@ class AddMonthlyKilometersView(generics.CreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def perform_create(self, serializer):
-        vehicle_id = self.kwargs.get('vehicle_id')
-        vehicle = get_object_or_404(Vehicle, id=vehicle_id)
-
-        # Ensure the vehicle has a driver assigned
-        if not vehicle.driver:
-            raise PermissionDenied("This vehicle does not have a driver assigned.")
-        # Check if the current user is the assigned driver
-        if vehicle.driver != self.request.user:
-            raise PermissionDenied("You are not authorized to add kilometers for this vehicle.")    
-
+        user = self.request.user
+        vehicle = serializer.validated_data['vehicle']
         kilometers = serializer.validated_data['kilometers_driven']
         now = timezone.now()
         month = now.strftime('%Y-%m')
         month_display = now.strftime('%B %Y')
-        # Validation: Prevent duplicate entry for the same vehicle and month
+
+        # Prevent duplicate entry for the same vehicle and month
         if MonthlyKilometerLog.objects.filter(vehicle=vehicle, month=month).exists():
             raise serializers.ValidationError(
                 f"Kilometers for {month_display} already recorded for this vehicle."
             )
+
         # Save the log
-        MonthlyKilometerLog.objects.create(
-            vehicle=vehicle,
-            kilometers_driven=kilometers,
+        serializer.save(
             month=month,
-            recorded_by=self.request.user
+            recorded_by=user
         )
 
         # Update vehicle total kilometers

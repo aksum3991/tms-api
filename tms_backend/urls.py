@@ -29,7 +29,7 @@ urlpatterns = [
     path("maintenance-requests/",include(maintenance_urls)),
     path("refueling_requests/",include(refueling_urls)),
     path("highcost-requests/",include(highcost_urls)),
-    path("vehicles/<int:vehicle_id>/add-monthly-kilometers/",AddMonthlyKilometersView.as_view(),name="add-monthly-kilometers"),
+    path("vehicles/add-monthly-kilometers/",AddMonthlyKilometersView.as_view(),name="add-monthly-kilometers"),
     path('vehicles/kilometer-logs/', MyMonthlyKilometerLogsListView.as_view(), name='my-kilometer-logs'),
     path("action-logs/", UserActionLogListView.as_view(), name="user-action-log-list"),
     path("action-logs/<int:pk>/", UserActionLogDetailView.as_view(), name="user-action-log-detail"),

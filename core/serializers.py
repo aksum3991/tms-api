@@ -304,16 +304,29 @@ class HighCostTransportRequestDetailSerializer(serializers.ModelSerializer):
 
 class MonthlyKilometerLogSerializer(serializers.ModelSerializer):
     kilometers_driven = serializers.IntegerField(min_value=1)
-    vehicle = serializers.SerializerMethodField(read_only=True)  # optional: for display
+    vehicle = serializers.PrimaryKeyRelatedField(
+        queryset=Vehicle.objects.all(),  # We'll restrict in validate()
+        required=True
+    )
+    vehicle_display = serializers.SerializerMethodField(read_only=True)
     recorded_by = serializers.StringRelatedField(read_only=True)
 
     class Meta:
         model = MonthlyKilometerLog
-        fields = ['id','vehicle', 'kilometers_driven','recorded_by', 'created_at']
-    def get_vehicle(self, obj):
+        fields = ['id', 'vehicle', 'vehicle_display', 'kilometers_driven', 'recorded_by', 'created_at']
+
+    def get_vehicle_display(self, obj):
         if obj.vehicle:
             return f"Model: {obj.vehicle.model} - License Plate: {obj.vehicle.license_plate}"
         return ""
+
+    def validate(self, data):
+        user = self.context['request'].user
+        vehicle = data.get('vehicle')
+        # Only allow vehicles assigned to this user
+        if vehicle.driver != user:
+            raise serializers.ValidationError("You are not authorized to add kilometers for this vehicle.")
+        return data
 
 
 
