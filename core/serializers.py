@@ -7,13 +7,24 @@ from core.models import ActionLog,CouponRequest, HighCostTransportRequest, Maint
 from rest_framework import serializers
 from django.utils import timezone
 class TransportRequestSerializer(serializers.ModelSerializer):
-    requester = serializers.ReadOnlyField(source='requester.get_full_name')
-    employees = serializers.PrimaryKeyRelatedField(queryset=User.objects.filter(role=User.EMPLOYEE), many=True)
+    requester = serializers.ReadOnlyField(source='requester.full_name')
+    # employees = serializers.PrimaryKeyRelatedField(queryset=User.objects.filter(role=User.EMPLOYEE), many=True)
+    employees = serializers.SerializerMethodField()
 
     class Meta:
         model = TransportRequest
-        fields = '__all__'
+        fields = [
+            'id', 'requester', 'employees', 'start_day', 'return_day', 'start_time',
+            'destination', 'reason', 'status', 'current_approver_role', 'rejection_message',
+            'trip_completed', 'created_at', 'updated_at', 'vehicle'
+        ]
+        read_only_fields = [
+            'id', 'requester', 'created_at', 'updated_at', 'status', 'current_approver_role', 'employees'
+        ]
 
+    def get_employees(self, obj):
+        return [user.full_name or user.email for user in obj.employees.all()]
+    
     def validate(self, data):
         """
         Ensure return_day is not before start_day.
@@ -246,7 +257,7 @@ class RefuelingRequestDetailSerializer(serializers.ModelSerializer):
         return "No fuel efficiency provided for the selected vehicle"
 
 class HighCostTransportRequestSerializer(serializers.ModelSerializer):
-    employees = serializers.PrimaryKeyRelatedField(many=True,queryset=User.objects.filter(role=User.EMPLOYEE))
+    employees = serializers.SerializerMethodField()
     requester = serializers.ReadOnlyField(source='requester.get_full_name')
     employee_list_file = serializers.FileField(required=False, allow_null=True)
 
@@ -255,6 +266,9 @@ class HighCostTransportRequestSerializer(serializers.ModelSerializer):
         fields = [
             'id','requester','start_day','return_day','start_time','destination','reason','employees','employee_list_file','vehicle','status','current_approver_role','rejection_message','created_at','updated_at'
         ]
+    def get_employees(self, obj):
+        return [user.full_name or user.email for user in obj.employees.all()]
+
     def validate(self, data):
         """
         Ensure return_day is not before start_day.
