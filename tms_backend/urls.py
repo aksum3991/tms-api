@@ -13,7 +13,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
 
-from core.views import AddMonthlyKilometersView, AvailableDriversView, AvailableOrganizationVehiclesListView, AvailableRentedVehiclesListView, AvailableVehiclesListView, MyAssignedVehicleView, MyMonthlyKilometerLogsListView, ReportAPIView, RequestOTPView, UserActionLogDetailView, UserActionLogListView, VehicleMarkAsMaintenanceView, VehicleViewSet, VehiclesAfterMaintenanceListView, VehiclesWithPendingMaintenanceRequestsView
+from core.views import AddMonthlyKilometersView, AvailableDriversView, AvailableOrganizationVehiclesListView, AvailableRentedVehiclesListView, AvailableVehiclesListView, DeactivateVehicleView, MyAssignedVehicleView, MyMonthlyKilometerLogsListView, ReactivateVehicleView, ReportAPIView, RequestOTPView, UserActionLogDetailView, UserActionLogListView, VehicleMarkAsMaintenanceView, VehicleViewSet, VehiclesAfterMaintenanceListView, VehiclesWithPendingMaintenanceRequestsView
 
 router = DefaultRouter()
 router.register(r'vehicles',VehicleViewSet)
@@ -43,4 +43,6 @@ urlpatterns = [
     path('maintained-vehicles/', VehiclesAfterMaintenanceListView.as_view(), name='vehicles-ready-after-maintenance'),
     path('vehicles/under-maintenance/list/', VehiclesWithPendingMaintenanceRequestsView.as_view(), name='vehicles-under-maintenance'),
     path('vehicles/<int:vehicle_id>/mark-as-maintenance/', VehicleMarkAsMaintenanceView.as_view(), name='vehicle-mark-as-maintenance'),
+    path('vehicles/deactivate/<int:vehicle_id>/',DeactivateVehicleView.as_view(),name='deactivate-available-vehicles'),
+    path('vehicles/activate/<int:vehicle_id>/',ReactivateVehicleView.as_view(),name='reactivate-available-vehicles'),
 ]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

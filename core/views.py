@@ -57,7 +57,7 @@ class DeactivateVehicleView(APIView):
     permission_classes = [IsTransportManager, permissions.IsAuthenticated]
 
     def post(self, request, vehicle_id):
-        vehicle = get_object_or_404(Vehicle, id=vehicle_id)
+        vehicle = get_object_or_404(Vehicle, id=vehicle_id,status=Vehicle.AVAILABLE, is_active=True, is_deleted=False)
         vehicle.deactivate()
         return Response({"message": "Vehicle deactivated successfully."}, status=status.HTTP_200_OK)
 
@@ -65,9 +65,9 @@ class ReactivateVehicleView(APIView):
     permission_classes = [IsTransportManager, permissions.IsAuthenticated]
 
     def post(self, request, vehicle_id):
-        vehicle = get_object_or_404(Vehicle, id=vehicle_id)
+        vehicle = get_object_or_404(Vehicle, id=vehicle_id,status=Vehicle.AVAILABLE,is_active=False, is_deleted=True)
         vehicle.activate()
-        return Response({"message": "Vehicle reactivated successfully."}, status=status.HTTP_200_OK)
+        return Response({"message": "Vehicle Reactivated successfully."}, status=status.HTTP_200_OK)
 
 class AvailableVehiclesListView(generics.ListAPIView):
     serializer_class = VehicleSerializer
@@ -87,7 +87,9 @@ class AvailableOrganizationVehiclesListView(generics.ListAPIView):
     def get_queryset(self):
         return Vehicle.objects.filter(
             source=Vehicle.ORGANIZATION_OWNED,
-            status=Vehicle.AVAILABLE
+            status=Vehicle.AVAILABLE,
+            is_active=True,
+            is_deleted=False
         ).select_related("driver")
 
 class AvailableRentedVehiclesListView(generics.ListAPIView):
@@ -97,7 +99,9 @@ class AvailableRentedVehiclesListView(generics.ListAPIView):
     def get_queryset(self):
         return Vehicle.objects.filter(
             source=Vehicle.RENTED,
-            status=Vehicle.AVAILABLE
+            status=Vehicle.AVAILABLE,
+            is_active=True,
+            is_deleted=False
         ).select_related("driver")
     
 class AvailableDriversView(APIView):

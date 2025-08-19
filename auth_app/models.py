@@ -48,6 +48,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_active = models.BooleanField(default=False) 
     is_deleted=models.BooleanField(default=False) 
     is_pending = models.BooleanField(default=True)  
+    is_staff = models.BooleanField(default=False)  # For admin access
+    is_superuser = models.BooleanField(default=False)  # For superuser access
     created_at = models.DateTimeField(default=now)
     updated_at = models.DateTimeField(auto_now=True)
     department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True, related_name="employees")
