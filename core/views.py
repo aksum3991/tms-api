@@ -29,6 +29,7 @@ import logging
 logger = logging.getLogger(__name__)
 class MyAssignedVehicleView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsAllowedVehicleUser]
+    pagination_class = None
 
     def get(self, request):
         # Get all vehicles assigned to the user
@@ -73,6 +74,8 @@ class ReactivateVehicleView(APIView):
 class AvailableVehiclesListView(generics.ListAPIView):
     serializer_class = VehicleSerializer
     permission_classes = [IsTransportManager]
+    pagination_class = None
+
 
     def get_queryset(self):
         return Vehicle.objects.filter(
@@ -84,6 +87,7 @@ class AvailableVehiclesListView(generics.ListAPIView):
 class AvailableOrganizationVehiclesListView(generics.ListAPIView):
     serializer_class = VehicleSerializer
     permission_classes = [IsTransportManager]
+    pagination_class=None
 
     def get_queryset(self):
         return Vehicle.objects.filter(
@@ -96,6 +100,8 @@ class AvailableOrganizationVehiclesListView(generics.ListAPIView):
 class AvailableRentedVehiclesListView(generics.ListAPIView):
     serializer_class = VehicleSerializer
     permission_classes = [IsNotDriverOrAdminOrEmployee]
+    pagination_class = None
+
     
     def get_queryset(self):
         return Vehicle.objects.filter(
