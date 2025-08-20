@@ -44,6 +44,7 @@ class VehicleViewSet(ModelViewSet):
     queryset = Vehicle.objects.all()
     serializer_class = VehicleSerializer
     permission_classes = [IsTransportManager]
+    pagination_class=None
 
     def update(self, request, *args, **kwargs):
         instance = self.get_object() 
