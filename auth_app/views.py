@@ -193,7 +193,40 @@ class AdminApprovalView(APIView):
             status=status.HTTP_200_OK,
         )
     
-      
+class AdminUserDepartmentUpdateView(APIView):
+    permission_classes = [permissions.IsAuthenticated, IsSystemAdmin]
+
+    def patch(self, request, user_id):
+        user = get_object_or_404(User, id=user_id)
+
+        # Require an integer department_id in the payload
+        try:
+            department_id = int(request.data.get("department_id"))
+        except (TypeError, ValueError):
+            return Response(
+                {"error": "department_id is required and must be an integer."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        department = get_object_or_404(Department, id=department_id)
+
+        if user.department_id == department.id:
+            return Response(
+                {"message": f"User is already in department '{department.name}'."},
+                status=status.HTTP_200_OK,
+            )
+
+        user.department = department
+        user.save(update_fields=["department"])
+
+        return Response(
+            {
+                "message": f"User department updated to '{department.name}' successfully.",
+                "user_id": user.id,
+                "department_id": department.id,
+            },
+            status=status.HTTP_200_OK,
+        )       
 class UserResubmissionView(APIView):
     permission_classes = [permissions.AllowAny]
     def get(self, request, user_id):

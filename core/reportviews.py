@@ -6,13 +6,13 @@ from core.models import ActionLog, HighCostTransportRequest, MaintenanceRequest,
 from django.db.models.functions import TruncMonth
 from django.db.models import Count,Sum, Q
 from datetime import datetime
-from auth_app.permissions import  IsCeo, IsGeneralSystem, IsTransportManager
+from auth_app.permissions import  IsCeo, IsGeneralSystem, IsTransportManager, IsSystemAdmin
 from itertools import chain
 from operator import attrgetter
 
 
 class RequestTypeDistributionAPIView(APIView): # used for pie chart
-    permission_classes = [permissions.IsAuthenticated, IsTransportManager|IsCeo|IsGeneralSystem]
+    permission_classes = [permissions.IsAuthenticated, IsTransportManager|IsCeo|IsGeneralSystem|IsSystemAdmin]
 
     def get(self, request):
         current_year = datetime.now().year
@@ -33,7 +33,7 @@ class RequestTypeDistributionAPIView(APIView): # used for pie chart
 
 
 class MonthlyRequestTrendsAPIView(APIView):  # used for monthly trends bar chart
-    permission_classes = [permissions.IsAuthenticated, IsTransportManager|IsCeo |IsGeneralSystem]
+    permission_classes = [permissions.IsAuthenticated, IsTransportManager|IsCeo |IsGeneralSystem|IsSystemAdmin]
 
     def get(self, request):
         current_year = datetime.now().year
@@ -86,7 +86,7 @@ class MonthlyRequestTrendsAPIView(APIView):  # used for monthly trends bar chart
         }
         return Response(trends)
 class DashboardOverviewAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated, IsTransportManager|IsCeo|IsGeneralSystem]
+    permission_classes = [permissions.IsAuthenticated, IsTransportManager|IsCeo|IsGeneralSystem|IsSystemAdmin]
 
     def get(self, request):
         data = {
@@ -94,6 +94,7 @@ class DashboardOverviewAPIView(APIView):
             "under_maintenance": Vehicle.objects.filter(status=Vehicle.MAINTENANCE).count(),
             "under_service": Vehicle.objects.filter(status=Vehicle.SERVICE).count(),
             "total_rental_vehicles": Vehicle.objects.filter(source=Vehicle.RENTED).count(),
+            "total_organization_owned_vehicles": Vehicle.objects.filter(source=Vehicle.ORGANIZATION_OWNED).count(),   
             "refueling_requests": RefuelingRequest.objects.count(),
             "maintenance_requests": MaintenanceRequest.objects.count(),
             "high_cost_requests": HighCostTransportRequest.objects.count(),
@@ -104,7 +105,7 @@ class DashboardOverviewAPIView(APIView):
 
 
 class RecentVehicleRequestsAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated, IsTransportManager |IsCeo |IsGeneralSystem]
+    permission_classes = [permissions.IsAuthenticated, IsTransportManager |IsCeo |IsGeneralSystem|IsSystemAdmin]
 
     def get(self, request):
         # Get the latest 5 requests from all request types
@@ -154,7 +155,7 @@ from .models import (
 )
 
 class TransportReportView(APIView):
-    permission_classes = [permissions.IsAuthenticated,IsTransportManager|IsCeo |IsGeneralSystem]  # Add IsTransportManager if needed
+    permission_classes = [permissions.IsAuthenticated,IsTransportManager|IsCeo |IsGeneralSystem|IsSystemAdmin]  # Add IsTransportManager if needed
 
     def get(self, request):
         request_type = request.GET.get('requesttype', 'all')

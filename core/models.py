@@ -58,6 +58,8 @@ class Vehicle(models.Model):
     chassis_number = models.CharField(max_length=100, unique=True,null=True,blank=True)
     libre_number = models.CharField(max_length=100, unique=True,null=True,blank=True)
     is_active = models.BooleanField(default=True, help_text="Used for activate and deactivate vehicles.")
+    bolo_number = models.CharField(max_length=100, unique=True, null=True, blank=True)
+    insurance_number = models.CharField(max_length=100, unique=True, null=True, blank=True)
     is_deleted=models.BooleanField(default=False,help_text="Used for soft delete of vehicles.") 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

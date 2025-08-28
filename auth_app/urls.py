@@ -3,8 +3,8 @@ from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from auth_app.views import (
-    AdminApprovalView, ApprovedUsersView, CustomTokenObtainPairView, DeactivateUserView,
-    DepartmentEmployeesView, DepartmentViewSet, LogoutView, ReactivateUserView,
+    AdminApprovalView, AdminUserDepartmentUpdateView, ApprovedUsersView, CustomTokenObtainPairView, DeactivateUserView,
+    DepartmentEmployeesView, DepartmentViewSet, LogoutView, ReactivateUserView, 
     UserDetailView, UserListView, UserRegistrationView, UserResubmissionView, UserStatusHistoryViewSet
 )
 
@@ -29,6 +29,7 @@ urlpatterns = [
     path("activate/<int:user_id>/",ReactivateUserView.as_view(),name="activate"),
     path("deactivate/<int:user_id>/",DeactivateUserView.as_view(),name="activate"),
     path("update-role/<int:user_id>/", AdminApprovalView.as_view(), name="update-role"),
+    path("update-department/<int:user_id>/", AdminUserDepartmentUpdateView.as_view(), name="update-department"),
     path('approved-users/', ApprovedUsersView.as_view(), name='approved-users'),
     path("departments/<int:department_id>/employees/", DepartmentEmployeesView.as_view(), name="department-employees"),
 ]
