@@ -58,8 +58,8 @@ class Vehicle(models.Model):
     chassis_number = models.CharField(max_length=100, unique=True,null=True,blank=True)
     libre_number = models.CharField(max_length=100, unique=True,null=True,blank=True)
     is_active = models.BooleanField(default=True, help_text="Used for activate and deactivate vehicles.")
-    bolo_number = models.CharField(max_length=100, unique=True, null=True, blank=True)
-    insurance_number = models.CharField(max_length=100, unique=True, null=True, blank=True)
+    bolo_date = models.DateField(unique=True, null=True, blank=True)
+    insurance_date = models.DateField(unique=True, null=True, blank=True)
     is_deleted=models.BooleanField(default=False,help_text="Used for soft delete of vehicles.") 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -83,6 +83,10 @@ class Vehicle(models.Model):
     )
     drivers_location = models.CharField(
         max_length=255, null=True, blank=True, help_text="Location of the driver for rented vehicles."
+    )
+    is_archived = models.BooleanField(
+        default=False,
+        help_text="Marks vehicle as archived (soft deleted)."
     )
 
  
