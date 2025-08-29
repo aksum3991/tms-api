@@ -135,7 +135,7 @@ class AvailableDriversView(APIView):
     def get(self, request):
         drivers = User.objects.exclude(role__in=[User.SYSTEM_ADMIN,User.EMPLOYEE])  
         drivers = drivers.filter(vehicles__isnull=True)
-        serializer = UserDetailSerializer(drivers, many=True)
+        # serializer = UserDetailSerializer(drivers, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
     
 class HighCostTransportRequestCreateView(generics.CreateAPIView):
