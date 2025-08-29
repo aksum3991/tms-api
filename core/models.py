@@ -58,8 +58,8 @@ class Vehicle(models.Model):
     chassis_number = models.CharField(max_length=100, unique=True,null=True,blank=True)
     libre_number = models.CharField(max_length=100, unique=True,null=True,blank=True)
     is_active = models.BooleanField(default=True, help_text="Used for activate and deactivate vehicles.")
-    bolo_date = models.DateField(unique=True, null=True, blank=True)
-    insurance_date = models.DateField(unique=True, null=True, blank=True)
+    bolo_date = models.DateField( null=True, blank=True)
+    insurance_date = models.DateField( null=True, blank=True)
     is_deleted=models.BooleanField(default=False,help_text="Used for soft delete of vehicles.") 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -126,6 +126,16 @@ class Vehicle(models.Model):
     def activate(self):
         self.is_active = True
         self.is_deleted = False
+        self.save()
+    def soft_delete(self):
+        """Mark vehicle as soft deleted."""
+        self.is_archived = True
+        if self.driver:
+            self.driver = None
+        self.save()
+    def restore(self):
+        """Restore a soft deleted vehicle."""
+        self.is_archived = False
         self.save()
 class MonthlyKilometerLog(models.Model):
     vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE)

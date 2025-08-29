@@ -13,7 +13,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
 
-from core.views import AddMonthlyKilometersView, AvailableDriversView, AvailableOrganizationVehiclesListView, AvailableRentedVehiclesListView, AvailableVehiclesListView, DeactivateVehicleView, MyAssignedVehicleView, MyMonthlyKilometerLogsListView, ReactivateVehicleView, ReportAPIView, RequestOTPView, UserActionLogDetailView, UserActionLogListView, VehicleMarkAsMaintenanceView, VehicleViewSet, VehiclesAfterMaintenanceListView, VehiclesWithPendingMaintenanceRequestsView
+from core.views import AddMonthlyKilometersView, AvailableDriversView, AvailableOrganizationVehiclesListView, AvailableRentedVehiclesListView, AvailableVehiclesListView, DeactivateVehicleView, MyAssignedVehicleView, MyMonthlyKilometerLogsListView, ReactivateVehicleView, ReportAPIView, RequestOTPView, UserActionLogDetailView, UserActionLogListView, VehicleMarkAsMaintenanceView, VehicleSoftDeleteView, VehicleViewSet, VehiclesAfterMaintenanceListView, VehiclesWithPendingMaintenanceRequestsView
 
 router = DefaultRouter()
 router.register(r'vehicles',VehicleViewSet)
@@ -45,4 +45,5 @@ urlpatterns = [
     path('vehicles/<int:vehicle_id>/mark-as-maintenance/', VehicleMarkAsMaintenanceView.as_view(), name='vehicle-mark-as-maintenance'),
     path('vehicles/deactivate/<int:vehicle_id>/',DeactivateVehicleView.as_view(),name='deactivate-available-vehicles'),
     path('vehicles/activate/<int:vehicle_id>/',ReactivateVehicleView.as_view(),name='reactivate-available-vehicles'),
+    path("vehicles/soft-delete/<int:id>/", VehicleSoftDeleteView.as_view(), name="vehicle-soft-delete"),
 ]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

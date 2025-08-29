@@ -37,12 +37,13 @@ class MyAssignedVehicleView(APIView):
         
         if not vehicles.exists():
             return Response({"message": "No vehicles assigned to you."}, status=status.HTTP_404_NOT_FOUND)
-
+        if vehicles.filter(is_archived=True).exists():
+            return Response({"message": "Your vehicle has been deleted."}, status=status.HTTP_404_NOT_FOUND)
         serializer = AssignedVehicleSerializer(vehicles, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 class VehicleViewSet(ModelViewSet):
-    queryset = Vehicle.objects.all()
+    queryset = Vehicle.objects.filter(is_archived=False)
     serializer_class = VehicleSerializer
     permission_classes = [IsTransportManager]
     pagination_class=None
@@ -54,7 +55,21 @@ class VehicleViewSet(ModelViewSet):
         self.perform_update(serializer)
 
         return Response(serializer.data)
+class VehicleSoftDeleteView(generics.DestroyAPIView):
+    """
+    Soft delete a vehicle (mark as deleted instead of hard delete).
+    """
+    queryset = Vehicle.objects.all()
+    serializer_class = VehicleSerializer
+    permission_classes = [permissions.IsAuthenticated, IsTransportManager]
 
+    def delete(self, request, id=None):
+        vehicle = get_object_or_404(Vehicle, id=id, is_archived__isnull=False)
+        vehicle.soft_delete()
+        return Response(
+            {"detail": f"Vehicle {vehicle.license_plate} soft deleted successfully."},
+            status=status.HTTP_204_NO_CONTENT,
+        )
 class DeactivateVehicleView(APIView):
     permission_classes = [IsTransportManager, permissions.IsAuthenticated]
 
@@ -79,7 +94,8 @@ class AvailableVehiclesListView(generics.ListAPIView):
 
     def get_queryset(self):
         return Vehicle.objects.filter(
-            status=Vehicle.AVAILABLE
+            status=Vehicle.AVAILABLE,
+            is_archived=False
         ).select_related(
             'driver'
         ).distinct()
@@ -94,7 +110,8 @@ class AvailableOrganizationVehiclesListView(generics.ListAPIView):
             source=Vehicle.ORGANIZATION_OWNED,
             status=Vehicle.AVAILABLE,
             is_active=True,
-            is_deleted=False
+            is_deleted=False,
+            is_archived=False
         ).select_related("driver")
 
 class AvailableRentedVehiclesListView(generics.ListAPIView):
@@ -108,7 +125,8 @@ class AvailableRentedVehiclesListView(generics.ListAPIView):
             source=Vehicle.RENTED,
             status=Vehicle.AVAILABLE,
             is_active=True,
-            is_deleted=False
+            is_deleted=False,
+            is_archived=False
         ).select_related("driver")
     
 class AvailableDriversView(APIView):
@@ -116,7 +134,7 @@ class AvailableDriversView(APIView):
 
     def get(self, request):
         drivers = User.objects.exclude(role__in=[User.SYSTEM_ADMIN,User.EMPLOYEE])  
-        # drivers=drivers.filter(assigned_vehicle__isnull=True)
+        drivers = drivers.filter(vehicles__isnull=True)
         serializer = UserDetailSerializer(drivers, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
     
@@ -1067,7 +1085,8 @@ class VehiclesWithPendingMaintenanceRequestsView(generics.ListAPIView):
         queryset = Vehicle.objects.annotate(
             has_pending_maintenance=Exists(pending_or_forwarded_exists)
         ).filter(
-            has_pending_maintenance=True
+            has_pending_maintenance=True,
+            is_archived=False,
         )
         return queryset
 
@@ -1534,7 +1553,8 @@ class VehiclesDueForServiceView(generics.ListAPIView):
         if self.request.user.role != User.TRANSPORT_MANAGER:
             raise PermissionDenied("Only transport managers can view this list.")
         return Vehicle.objects.filter(
-            total_kilometers__gte=F('last_service_kilometers') + 5000
+            total_kilometers__gte=F('last_service_kilometers') + 5000,
+            is_archived=False
         )
 
 class ServiceRequestListView(generics.ListAPIView):
@@ -1757,7 +1777,8 @@ class ServicedVehiclesListView(generics.ListAPIView):
             latest_status=Subquery(latest_request_status)
         ).filter(
             latest_status__in=['approved', 'rejected'],
-            status=Vehicle.SERVICE  # Make sure this matches your model's constant
+            status=Vehicle.SERVICE,  # Make sure this matches your model's constant
+            is_archived=False
         )
 
 class MarkServicedVehicleAvailableView(APIView):
@@ -1841,7 +1862,8 @@ class VehiclesAfterMaintenanceListView(generics.ListAPIView):
             has_approved_maintenance=Exists(approved_maintenance_exists)
         ).filter(
             has_approved_maintenance=True,
-            status=Vehicle.MAINTENANCE
+            status=Vehicle.MAINTENANCE,
+            is_archived=False
         )
 
 class MarkMaintenancedVehicleAvailableView(APIView):
